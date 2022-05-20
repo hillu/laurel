@@ -234,8 +234,8 @@ impl<'a> Coalesce<'a> {
             .filter( |(_, id)| id.timestamp + EXPIRE_INFLIGHT_TIMEOUT < now )
             .cloned()
             .collect::<Vec<_>>();
-        for (node, id) in node_ids {
-            if let Some(event) = self.inflight.remove(&(node.clone(), id)) {
+        for node_id in node_ids {
+            if let Some(event) = self.inflight.remove(&node_id) {
                 self.emit_event(event);
             }
         }
