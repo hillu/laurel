@@ -205,7 +205,7 @@ impl ProcTable {
                 }
             }
         }
-        prune.iter().for_each(|pid| { self.processes.remove(&pid); } );
+        prune.iter().for_each(|pid| { if *pid > 1 { self.processes.remove(&pid); } } );
     }
 
     pub fn add_label(&mut self, pid: u32, label: &[u8]) {
