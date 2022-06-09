@@ -140,9 +140,9 @@ impl Process {
             return Err("ppid field not found".into());
         }
         if let Some(v) = rexecve.get(b"ARGV") {
-            p.argv = v.try_into()?;
+            p.argv = (&v).try_into()?;
         } else if let Some(v) = rexecve.get(b"ARGV_STR") {
-            p.argv = v.try_into()?;
+            p.argv = (&v).try_into()?;
         } else {
             return Err("ARGV field not found".into());
         }

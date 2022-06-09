@@ -294,9 +294,9 @@ impl PartialEq<[u8]> for RKey<'_> {
     }
 }
 
-impl TryFrom<RValue<'_>> for Vec<u8> {
+impl TryFrom<&RValue<'_>> for Vec<u8> {
     type Error = Box<dyn StdError>;
-    fn try_from(v: RValue) -> Result<Self, Self::Error> {
+    fn try_from(v: &RValue) -> Result<Self, Self::Error> {
         match v.value {
             Value::Str(r,Quote::Braces) => {
                 let mut s = Vec::with_capacity(r.len() + 2);
@@ -321,14 +321,14 @@ impl TryFrom<RValue<'_>> for Vec<u8> {
     }
 }
 
-impl TryFrom<RValue<'_>> for Vec<Vec<u8>> {
+impl TryFrom<&RValue<'_>> for Vec<Vec<u8>> {
     type Error = Box<dyn StdError>;
-    fn try_from(value: RValue) -> Result<Self, Self::Error> {
+    fn try_from(value: &RValue) -> Result<Self, Self::Error> {
         match value.value {
             Value::List(values) | Value::StringifiedList(values) => {
                 let mut rv = Vec::with_capacity(values.len());
                 for v in values {
-                    let s = Vec::try_from(RValue{value: &v, raw: &value.raw})?;
+                    let s = Vec::try_from(&RValue{value: &v, raw: &value.raw})?;
                     rv.push(s);
                 }
                 Ok(rv)
@@ -456,7 +456,7 @@ impl Serialize for RValue<'_> {
                     } else {
                         buf.push(b' ');
                     }
-                    buf.extend(RValue{raw: &self.raw, value: &v}
+                    buf.extend((&RValue{raw: &self.raw, value: &v})
                                .try_into().
                                unwrap_or_else(|_| vec!(b'x')));
                 }
