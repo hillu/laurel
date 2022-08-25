@@ -99,6 +99,7 @@ pub struct Settings<'a> {
     pub translate_userdb: bool,
 
     pub label_exe: Option<&'a LabelMatcher>,
+    pub label_argv: Option<&'a LabelMatcher>,
 
     pub filter_keys: HashSet<Vec<u8>>,
     pub filter_labels: HashSet<Vec<u8>>,
@@ -116,6 +117,7 @@ impl Default for Settings<'_> {
             translate_universal: false,
             translate_userdb: false,
             label_exe: None,
+            label_argv: None,
             filter_keys: HashSet::new(),
             filter_labels: HashSet::new(),
         }

@@ -82,6 +82,9 @@ label-exe.'^/opt/.*/bin/java$' = 'java'
 label-exe.'^/usr/lib/jvm/.*/bin/java$' = 'java'
 label-exe.'^/snap/amazon-ssm-agent/\d+/' = 'amazon-ssm-agent'
 
+# Labels can be attached to processes based on their command line.
+label-argv."[^ ]*/java .* org.apache.catalina.startup.Bootstrap start" = "tomcat"
+
 # Process Labels can be propagated to spawned child processes. This is
 # useful for marking an entire subtree of children that have been
 # spawned within certain contexts (e.g. system management tools,
