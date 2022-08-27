@@ -333,7 +333,6 @@ impl<'a> Coalesce<'a> {
         let mut comm: Option<Vec<u8>> = None;
         let mut exe: Option<Vec<u8>> = None;
         let mut key: Option<Vec<u8>> = None;
-        let mut syscall_is_exec = false;
         for tv in ev.body.iter_mut() {
             match tv {
                 (&SYSCALL, EventValues::Single(rv)) => {
@@ -423,9 +422,6 @@ impl<'a> Coalesce<'a> {
                                         Value::Str(v, Quote::None),
                                     ));
                                 }
-                                if syscall_name.windows(6).any(|s| s == b"execve") {
-                                    syscall_is_exec = true;
-                                }
                             }
                             if self.settings.translate_universal {
                                 let v = rv.put(arch_name);
@@ -486,21 +482,6 @@ impl<'a> Coalesce<'a> {
                             Value::StringifiedList(argv.clone()),
                         ));
                     }
-                    // ENV
-                    match pid {
-                        Some(pid) if !self.settings.execve_env.is_empty() => {
-                            if let Ok(vars) =
-                                get_environ(pid, |k| self.settings.execve_env.contains(k))
-                            {
-                                let map =
-                                    vars.iter().map(|(k, v)| (rv.put(k), rv.put(v))).collect();
-                                new.push((Key::Literal("ENV"), Value::Map(map)));
-                            }
-                        }
-                        _ => (),
-                    };
-
-                    rv.elems = new;
 
                     // register process, add propagated labels from
                     // parent if applicable
@@ -531,6 +512,59 @@ impl<'a> Coalesce<'a> {
                             }
                         }
                     }
+
+                    // Apply label based on exe
+                    if let (Some(exe), Some(pid), Some(label_exe)) =
+                        (&exe, &pid, &self.settings.label_exe)
+                    {
+                        for label in label_exe.matches(exe) {
+                            self.processes.add_label(*pid, label);
+                        }
+                    }
+
+                    // Apply label based on ARGV
+                    if let (Some(pid), Some(label_argv)) = (&pid, self.settings.label_argv) {
+                        let argv = argv.clone().into_iter().fold(
+                            Vec::new(),
+                            |mut acc: Vec<u8>, v: Value| -> Vec<u8> {
+                                if !acc.is_empty() {
+                                    acc.push(b' ');
+                                }
+                                match v {
+                                    Value::Str(r, _) => {
+                                        acc.extend_from_slice(&rv.raw[r]);
+                                    }
+                                    Value::Segments(rs) => {
+                                        for r in rs {
+                                            acc.extend_from_slice(&rv.raw[r]);
+                                        }
+                                    }
+                                    _ => {}
+                                }
+                                acc
+                            },
+                        );
+                        // assemble string
+                        for label in label_argv.matches(&argv) {
+                            self.processes.add_label(*pid, label);
+                        }
+                    }
+
+                    // ENV
+                    match pid {
+                        Some(pid) if !self.settings.execve_env.is_empty() => {
+                            if let Ok(vars) =
+                                get_environ(pid, |k| self.settings.execve_env.contains(k))
+                            {
+                                let map =
+                                    vars.iter().map(|(k, v)| (rv.put(k), rv.put(v))).collect();
+                                new.push((Key::Literal("ENV"), Value::Map(map)));
+                            }
+                        }
+                        _ => (),
+                    };
+
+                    rv.elems = new;
                 }
                 (&SOCKADDR, EventValues::Multi(rvs)) => {
                     for mut rv in rvs {
@@ -598,14 +632,6 @@ impl<'a> Coalesce<'a> {
         if let (Some(pid), Some(key)) = (&pid, &key) {
             if self.settings.proc_label_keys.contains(key) {
                 self.processes.add_label(*pid, key);
-            }
-        }
-
-        if let (Some(exe), Some(pid), Some(label_exe), true) =
-            (&exe, &pid, &self.settings.label_exe, syscall_is_exec)
-        {
-            for label in label_exe.matches(exe) {
-                self.processes.add_label(*pid, label);
             }
         }
 
