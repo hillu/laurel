@@ -288,7 +288,7 @@ pub enum Quote {
     Braces,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub enum Number {
     Hex(u64),
     Dec(i64),
@@ -380,11 +380,55 @@ impl<'a> Value<'a> {
             RecordValue::Literal(s) => Value::Literal(s),
         }
     }
+
+    fn to_rv(&self, mut raw: &'a mut Vec<u8>) -> RecordValue {
+        match self {
+            Value::Empty => RecordValue::Empty,
+            Value::Str(r, q) => {
+                if let Some(offset) = slice_contains(raw, r) {
+                    RecordValue::Str(offset..offset + r.len(), *q)
+                } else {
+                    let offset = raw.len();
+                    raw.extend(*r);
+                    RecordValue::Str(offset..offset + r.len(), *q)
+                }
+            }
+            Value::Segments(v) => RecordValue::Segments(
+                v.iter()
+                    .map(|r| {
+                        if let Some(offset) = slice_contains(raw, r) {
+                            offset..offset + r.len()
+                        } else {
+                            let offset = raw.len();
+                            raw.extend(*r);
+                            offset..offset + r.len()
+                        }
+                    })
+                    .collect(),
+            ),
+            Value::List(v) => RecordValue::List(v.iter().map(|el| el.to_rv(&mut raw)).collect()),
+            Value::StringifiedList(v) => {
+                RecordValue::StringifiedList(v.iter().map(|el| el.to_rv(&mut raw)).collect())
+            }
+            Value::Map(v) => RecordValue::Map(
+                v.iter()
+                    .map(|(k, v)| (k.to_rv(&mut raw), v.to_rv(&mut raw)))
+                    .collect(),
+            ),
+            Value::Number(n) => RecordValue::Number(*n),
+            Value::Skipped(n) => RecordValue::Skipped(*n),
+            Value::Literal(s) => RecordValue::Literal(*s),
+        }
+    }
 }
 
-impl Default for RecordValue {
-    fn default() -> Self {
-        Self::Empty
+// FIXME: vocabulary
+fn slice_contains(mainslice: &[u8], subslice: &[u8]) -> Option<usize> {
+    let (m, s) = (mainslice.as_ptr_range(), subslice.as_ptr_range());
+    if m.start <= s.start && m.end >= s.end {
+        Some(unsafe { s.start.offset_from(m.start) } as _)
+    } else {
+        None
     }
 }
 
@@ -398,6 +442,7 @@ impl RecordValue {
     }
 }
 
+// FIXME: Str really needed? Perhaps Cow?
 #[derive(Clone)]
 pub enum SimpleRecordKey {
     Str(Range<usize>),
@@ -410,7 +455,7 @@ pub enum SimpleRecordValue {
     Number(Number),
 }
 
-// FIXME: just one type of str?
+// FIXME: just one type of str? Cow?
 #[derive(Clone)]
 pub enum SimpleKey<'a> {
     Str(&'a [u8]),
@@ -422,6 +467,21 @@ impl<'a> SimpleKey<'a> {
         match r {
             SimpleRecordKey::Str(r) => SimpleKey::Str(&raw[r.clone()]),
             SimpleRecordKey::Literal(s) => SimpleKey::Literal(s),
+        }
+    }
+
+    fn to_rv(&self, raw: &'a mut Vec<u8>) -> SimpleRecordKey {
+        match self {
+            SimpleKey::Str(s) => {
+                if let Some(offset) = slice_contains(raw, s) {
+                    SimpleRecordKey::Str(offset..offset + s.len())
+                } else {
+                    let offset = raw.len();
+                    raw.extend(*s);
+                    SimpleRecordKey::Str(offset..offset + s.len())
+                }
+            }
+            SimpleKey::Literal(s) => SimpleRecordKey::Literal(s),
         }
     }
 }
@@ -439,12 +499,28 @@ impl<'a> SimpleValue<'a> {
             SimpleRecordValue::Number(n) => SimpleValue::Number(n.clone()),
         }
     }
+
+    fn to_rv(&self, raw: &'a mut Vec<u8>) -> SimpleRecordValue {
+        match self {
+            SimpleValue::Str(s) => {
+                if let Some(offset) = slice_contains(raw, s) {
+                    SimpleRecordValue::Str(offset..offset + s.len())
+                } else {
+                    let offset = raw.len();
+                    raw.extend(*s);
+                    SimpleRecordValue::Str(offset..offset + s.len())
+                }
+            }
+            SimpleValue::Number(n) => SimpleRecordValue::Number(n.clone()),
+        }
+    }
 }
 
 /// List of [`Key`]/[`Value`] pairs, that are, for the most part,
 /// stored offsets into the raw log line.
 #[derive(Default, Clone)]
 pub struct Record {
+    // FIXME: make this an opaque type
     pub elems: Vec<(Key, RecordValue)>,
     pub raw: Vec<u8>,
 }
@@ -519,6 +595,11 @@ impl Record {
                 })
                 .collect::<Vec<_>>(),
         )
+    }
+
+    pub fn push(&mut self, kv: (Key, Value)) {
+        let (k, v) = (kv.0, kv.1.to_rv(&mut self.raw));
+        self.elems.push((k, v));
     }
 
     /// Retrieves the first value found for a given key
