@@ -323,7 +323,7 @@ impl Serialize for Number {
 
 /// Representation of the value part of key/value pairs in [`Record`]
 #[derive(Clone)]
-pub enum Value {
+pub enum RecordValue {
     Empty,
     Str(Range<usize>, Quote),
     /// Segments are generated in Coalesce::normalize() from `EXECVE`
@@ -331,10 +331,10 @@ pub enum Value {
     Segments(Vec<Range<usize>>),
     /// Lists are generated in Coalesce::normalize() e.g.: `EXECVE` /
     /// `a0`, `a1`, `a2` … -> `ARGV`
-    List(Vec<Value>),
-    StringifiedList(Vec<Value>),
+    List(Vec<RecordValue>),
+    StringifiedList(Vec<RecordValue>),
     /// Key/Value map, used in ENV (environment variables) list
-    Map(Vec<(SimpleKey, SimpleValue)>),
+    Map(Vec<(SimpleRecordKey, SimpleRecordValue)>),
     /// Values generated in parse() from unquoted Str values
     ///
     /// For example, `SYSCALL` / `a0` etc are interpreted as
@@ -345,39 +345,107 @@ pub enum Value {
     Literal(&'static str),
 }
 
-impl Default for Value {
+#[derive(Clone)]
+pub enum Value<'a> {
+    Empty,
+    Str(&'a [u8], Quote),
+    Segments(Vec<&'a [u8]>),
+    List(Vec<Value<'a>>),
+    StringifiedList(Vec<Value<'a>>),
+    Map(Vec<(SimpleKey<'a>, SimpleValue<'a>)>),
+    Number(Number),
+    Skipped((usize, usize)),
+    Literal(&'static str),
+}
+
+impl<'a> Value<'a> {
+    fn from_rv(r: &RecordValue, raw: &'a [u8]) -> Self {
+        match r {
+            RecordValue::Empty => Value::Empty,
+            RecordValue::Str(r, q) => Value::Str(&raw[r.clone()], *q),
+            RecordValue::Segments(v) => {
+                Value::Segments(v.iter().map(|r| &raw[r.clone()]).collect())
+            }
+            RecordValue::List(v) => Value::List(v.iter().map(|v| Value::from_rv(v, raw)).collect()),
+            RecordValue::StringifiedList(v) => {
+                Value::StringifiedList(v.iter().map(|v| Value::from_rv(v, raw)).collect())
+            }
+            RecordValue::Map(v) => Value::Map(
+                v.iter()
+                    .map(|(k, v)| (SimpleKey::from_rv(k, raw), SimpleValue::from_rv(v, raw)))
+                    .collect(),
+            ),
+            RecordValue::Number(n) => Value::Number(n.clone()),
+            RecordValue::Skipped((a, b)) => Value::Skipped((*a, *b)),
+            RecordValue::Literal(s) => Value::Literal(s),
+        }
+    }
+}
+
+impl Default for RecordValue {
     fn default() -> Self {
         Self::Empty
     }
 }
 
-impl Value {
+impl RecordValue {
     pub fn str_len(&self) -> usize {
         match self {
-            Value::Str(r, _) => r.len(),
-            Value::Segments(vr) => vr.iter().map(|r| r.len()).sum(),
+            RecordValue::Str(r, _) => r.len(),
+            RecordValue::Segments(vr) => vr.iter().map(|r| r.len()).sum(),
             _ => 0,
         }
     }
 }
 
 #[derive(Clone)]
-pub enum SimpleKey {
+pub enum SimpleRecordKey {
     Str(Range<usize>),
     Literal(&'static str),
 }
 
 #[derive(Clone)]
-pub enum SimpleValue {
+pub enum SimpleRecordValue {
     Str(Range<usize>),
     Number(Number),
+}
+
+// FIXME: just one type of str?
+#[derive(Clone)]
+pub enum SimpleKey<'a> {
+    Str(&'a [u8]),
+    Literal(&'static str),
+}
+
+impl<'a> SimpleKey<'a> {
+    fn from_rv(r: &SimpleRecordKey, raw: &'a [u8]) -> Self {
+        match r {
+            SimpleRecordKey::Str(r) => SimpleKey::Str(&raw[r.clone()]),
+            SimpleRecordKey::Literal(s) => SimpleKey::Literal(s),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub enum SimpleValue<'a> {
+    Str(&'a [u8]),
+    Number(Number),
+}
+
+impl<'a> SimpleValue<'a> {
+    fn from_rv(r: &SimpleRecordValue, raw: &'a [u8]) -> Self {
+        match r {
+            SimpleRecordValue::Str(r) => SimpleValue::Str(&raw[r.clone()]),
+            SimpleRecordValue::Number(n) => SimpleValue::Number(n.clone()),
+        }
+    }
 }
 
 /// List of [`Key`]/[`Value`] pairs, that are, for the most part,
 /// stored offsets into the raw log line.
 #[derive(Default, Clone)]
 pub struct Record {
-    pub elems: Vec<(Key, Value)>,
+    pub elems: Vec<(Key, RecordValue)>,
     pub raw: Vec<u8>,
 }
 
@@ -418,16 +486,18 @@ impl Record {
                     (
                         k,
                         match v {
-                            Value::Str(r, q) => Value::Str(r.offset(rawlen), q),
-                            Value::Empty | Value::Number(_) | Value::Literal(_) => v,
-                            Value::Map(kv) => Value::Map(
+                            RecordValue::Str(r, q) => RecordValue::Str(r.offset(rawlen), q),
+                            RecordValue::Empty
+                            | RecordValue::Number(_)
+                            | RecordValue::Literal(_) => v,
+                            RecordValue::Map(kv) => RecordValue::Map(
                                 kv.into_iter()
                                     .map(|(k, v)| {
                                         (
                                             k,
                                             match v {
-                                                SimpleValue::Str(r) => {
-                                                    SimpleValue::Str(r.offset(rawlen))
+                                                SimpleRecordValue::Str(r) => {
+                                                    SimpleRecordValue::Str(r.offset(rawlen))
                                                 }
                                                 _ => v,
                                             },
@@ -435,14 +505,14 @@ impl Record {
                                     })
                                     .collect(),
                             ),
-                            Value::Segments(_) => {
-                                panic!("Value::Segments should only exist in EXECVE")
+                            RecordValue::Segments(_) => {
+                                panic!("RecordValue::Segments should only exist in EXECVE")
                             }
-                            Value::Skipped(_) => {
-                                panic!("Value::Skipped should only exist in EXECVE")
+                            RecordValue::Skipped(_) => {
+                                panic!("RecordValue::Skipped should only exist in EXECVE")
                             }
-                            Value::List(_) | Value::StringifiedList(_) => {
-                                panic!("Value::List should only exist in EXECVE")
+                            RecordValue::List(_) | RecordValue::StringifiedList(_) => {
+                                panic!("RecordValue::List should only exist in EXECVE")
                             }
                         },
                     )
@@ -452,7 +522,7 @@ impl Record {
     }
 
     /// Retrieves the first value found for a given key
-    pub fn get<K: AsRef<[u8]>>(&self, key: K) -> Option<RValue> {
+    pub fn get<K: AsRef<[u8]>>(&self, key: K) -> Option<Value> {
         let key = key.as_ref();
         for (k, v) in self {
             if format!("{}", k).as_bytes() == key {
@@ -472,7 +542,7 @@ impl Record {
 }
 
 impl<'a> IntoIterator for &'a Record {
-    type Item = (&'a Key, RValue<'a>);
+    type Item = (&'a Key, Value<'a>);
     type IntoIter = RecordIterator<'a>;
     fn into_iter(self) -> Self::IntoIter {
         RecordIterator { count: 0, r: self }
@@ -485,46 +555,34 @@ pub struct RecordIterator<'a> {
 }
 
 impl<'a> Iterator for RecordIterator<'a> {
-    type Item = (&'a Key, RValue<'a>);
+    type Item = (&'a Key, Value<'a>);
     fn next(&mut self) -> Option<Self::Item> {
         self.count += 1;
-        self.r.elems.get(self.count - 1).map(|(key, value)| {
-            (
-                key,
-                RValue {
-                    value,
-                    raw: &self.r.raw,
-                },
-            )
-        })
+        self.r
+            .elems
+            .get(self.count - 1)
+            .map(|(key, value)| (key, Value::from_rv(value, &self.r.raw)))
     }
 }
 
-/// RValue is borrowed from Record.
-#[derive(Clone, Copy)]
-pub struct RValue<'a> {
-    pub value: &'a Value,
-    pub raw: &'a [u8],
-}
-
-impl TryFrom<RValue<'_>> for Vec<u8> {
+impl TryFrom<Value<'_>> for Vec<u8> {
     type Error = Box<dyn StdError>;
-    fn try_from(v: RValue) -> Result<Self, Self::Error> {
-        match v.value {
+    fn try_from(v: Value) -> Result<Self, Self::Error> {
+        match v {
             Value::Str(r, Quote::Braces) => {
                 let mut s = Vec::with_capacity(r.len() + 2);
                 s.push(b'{');
-                s.extend(Vec::from(&v.raw[r.clone()]));
+                s.extend(r);
                 s.push(b'}');
                 Ok(s)
             }
-            Value::Str(r, _) => Ok(Vec::from(&v.raw[r.clone()])),
+            Value::Str(r, _) => Ok(Vec::from(r)),
             Value::Empty => Ok("".into()),
             Value::Segments(ranges) => {
                 let l = ranges.iter().map(|r| r.len()).sum();
                 let mut sb = Vec::with_capacity(l);
                 for r in ranges {
-                    sb.extend(Vec::from(&v.raw[r.clone()]));
+                    sb.extend(Vec::from(r));
                 }
                 Ok(sb)
             }
@@ -539,17 +597,14 @@ impl TryFrom<RValue<'_>> for Vec<u8> {
     }
 }
 
-impl TryFrom<RValue<'_>> for Vec<Vec<u8>> {
+impl TryFrom<Value<'_>> for Vec<Vec<u8>> {
     type Error = Box<dyn StdError>;
-    fn try_from(value: RValue) -> Result<Self, Self::Error> {
-        match value.value {
+    fn try_from(value: Value) -> Result<Self, Self::Error> {
+        match value {
             Value::List(values) | Value::StringifiedList(values) => {
                 let mut rv = Vec::with_capacity(values.len());
                 for v in values {
-                    let s = Vec::try_from(RValue {
-                        value: v,
-                        raw: value.raw,
-                    })?;
+                    let s = Vec::try_from(v)?;
                     rv.push(s);
                 }
                 Ok(rv)
@@ -559,14 +614,10 @@ impl TryFrom<RValue<'_>> for Vec<Vec<u8>> {
     }
 }
 
-impl Debug for RValue<'_> {
+impl Debug for Value<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self.value {
-            Value::Str(r, _q) => write!(
-                f,
-                "Str:<{}>",
-                &String::from_utf8_lossy(&self.raw[r.clone()])
-            ),
+        match self {
+            Value::Str(r, _q) => write!(f, "Str:<{}>", &String::from_utf8_lossy(&r)),
             Value::Empty => write!(f, "Empty"),
             Value::Segments(segs) => {
                 write!(f, "Segments<")?;
@@ -574,7 +625,7 @@ impl Debug for RValue<'_> {
                     if n > 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{}", String::from_utf8_lossy(&self.raw[r.clone()]))?;
+                    write!(f, "{}", String::from_utf8_lossy(&r))?;
                 }
                 write!(f, ">")
             }
@@ -586,11 +637,11 @@ impl Debug for RValue<'_> {
                     }
                     match v {
                         Value::Str(r, _) => {
-                            write!(f, "{}", String::from_utf8_lossy(&self.raw[r.clone()]))?;
+                            write!(f, "{}", String::from_utf8_lossy(&r))?;
                         }
                         Value::Segments(rs) => {
                             for r in rs {
-                                write!(f, "{}", String::from_utf8_lossy(&self.raw[r.clone()]))?;
+                                write!(f, "{}", String::from_utf8_lossy(&r))?;
                             }
                         }
                         Value::Number(n) => write!(f, "{:?}", n)?,
@@ -615,11 +666,11 @@ impl Debug for RValue<'_> {
                     }
                     match v {
                         Value::Str(r, _) => {
-                            write!(f, "{}", String::from_utf8_lossy(&self.raw[r.clone()]))?;
+                            write!(f, "{}", String::from_utf8_lossy(&r))?;
                         }
                         Value::Segments(rs) => {
                             for r in rs {
-                                write!(f, "{}", String::from_utf8_lossy(&self.raw[r.clone()]))?;
+                                write!(f, "{}", String::from_utf8_lossy(&r))?;
                             }
                         }
                         Value::Number(n) => write!(f, "{:?}", n)?,
@@ -643,7 +694,7 @@ impl Debug for RValue<'_> {
                         write!(f, " ")?;
                     }
                     let v = match &v.1 {
-                        SimpleValue::Str(r) => String::from_utf8_lossy(&self.raw[r.clone()]).into(),
+                        SimpleValue::Str(r) => String::from_utf8_lossy(&r).into(),
                         SimpleValue::Number(n) => format!("{:?}", n),
                     };
                     write!(f, "{}={}", n, v)?;
@@ -657,10 +708,10 @@ impl Debug for RValue<'_> {
     }
 }
 
-impl Serialize for RValue<'_> {
+impl Serialize for Value<'_> {
     #[inline(always)]
     fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
-        match self.value {
+        match self {
             Value::Empty => s.serialize_none(),
             Value::Str(r, q) => {
                 let (q1, q2) = if let Quote::Braces = q {
@@ -668,25 +719,17 @@ impl Serialize for RValue<'_> {
                 } else {
                     ("", "")
                 };
-                s.collect_str(&format_args!(
-                    "{}{}{}",
-                    q1,
-                    &self.raw[r.clone()].to_quoted_string(),
-                    q2
-                ))
+                s.collect_str(&format_args!("{}{}{}", q1, &r.to_quoted_string(), q2))
             }
             Value::Segments(segs) => {
                 let l = segs.iter().map(|r| r.len()).sum();
                 let mut sb = String::with_capacity(l);
                 for seg in segs {
-                    sb.push_str(&self.raw[seg.clone()].to_quoted_string());
+                    sb.push_str(&seg.to_quoted_string());
                 }
                 s.collect_str(&sb)
             }
-            Value::List(vs) => s.collect_seq(vs.iter().map(|v| RValue {
-                raw: self.raw,
-                value: v,
-            })),
+            Value::List(vs) => s.collect_seq(vs),
             Value::StringifiedList(vs) => {
                 let mut buf: Vec<u8> = Vec::with_capacity(vs.len());
                 let mut first = true;
@@ -701,14 +744,7 @@ impl Serialize for RValue<'_> {
                             format!("<<< Skipped: args={}, bytes={} >>>", args, bytes).bytes(),
                         );
                     } else {
-                        buf.extend(
-                            RValue {
-                                raw: self.raw,
-                                value: v,
-                            }
-                            .try_into()
-                            .unwrap_or_else(|_| vec![b'x']),
-                        );
+                        buf.extend((*v).clone().try_into().unwrap_or_else(|_| vec![b'x']))
                     }
                 }
                 s.serialize_str(&buf.to_quoted_string())
@@ -718,15 +754,11 @@ impl Serialize for RValue<'_> {
                 let mut map = s.serialize_map(Some(vs.len()))?;
                 for (k, v) in vs {
                     match k {
-                        SimpleKey::Str(r) => {
-                            map.serialize_key(&self.raw[r.clone()].to_quoted_string())?
-                        }
+                        SimpleKey::Str(r) => map.serialize_key(&r.to_quoted_string())?,
                         SimpleKey::Literal(n) => map.serialize_key(n)?,
                     }
                     match v {
-                        SimpleValue::Str(r) => {
-                            map.serialize_value(&self.raw[r.clone()].to_quoted_string())?
-                        }
+                        SimpleValue::Str(r) => map.serialize_value(&r.to_quoted_string())?,
                         SimpleValue::Number(n) => map.serialize_value(&n)?,
                     }
                 }
@@ -743,15 +775,15 @@ impl Serialize for RValue<'_> {
     }
 }
 
-impl PartialEq<str> for RValue<'_> {
+impl PartialEq<str> for Value<'_> {
     fn eq(&self, other: &str) -> bool {
         self == other.as_bytes()
     }
 }
 
-impl PartialEq<[u8]> for RValue<'_> {
+impl PartialEq<[u8]> for Value<'_> {
     fn eq(&self, other: &[u8]) -> bool {
-        if let Ok(v) = (*self).try_into() as Result<Vec<u8>, _> {
+        if let Ok(v) = self.clone().try_into() as Result<Vec<u8>, _> {
             return v == other;
         }
         false

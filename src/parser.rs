@@ -54,12 +54,12 @@ pub fn parse(
 
     for (k, v) in body {
         let v = match &v {
-            PValue::Empty => Value::Empty,
-            PValue::Number(n) => Value::Number(n.clone()),
-            PValue::Str(s, q) => Value::Str(to_range(&raw, s), *q),
-            PValue::List(vs) => Value::List(
+            PValue::Empty => RecordValue::Empty,
+            PValue::Number(n) => RecordValue::Number(n.clone()),
+            PValue::Str(s, q) => RecordValue::Str(to_range(&raw, s), *q),
+            PValue::List(vs) => RecordValue::List(
                 vs.iter()
-                    .map(|s| Value::Str(to_range(&raw, s), Quote::None))
+                    .map(|s| RecordValue::Str(to_range(&raw, s), Quote::None))
                     .collect::<Vec<_>>(),
             ),
             PValue::HexStr(s) => {
@@ -67,7 +67,7 @@ pub fn parse(
                 // happens below.
                 let o = raw.offset(s);
                 hex_strides.push(o..o + s.len());
-                Value::Str(o..o + s.len() / 2, Quote::None)
+                RecordValue::Str(o..o + s.len() / 2, Quote::None)
             }
         };
         elems.push((k, v));

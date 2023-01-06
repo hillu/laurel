@@ -203,16 +203,16 @@ impl Process {
         };
         let pid: u32;
         if let Some(v) = rsyscall.get(b"pid") {
-            match v.value {
-                Value::Number(Number::Dec(n)) => pid = *n as u32,
+            match v {
+                Value::Number(Number::Dec(n)) => pid = n as u32,
                 _ => return Err("pid field is not numeric".into()),
             }
         } else {
             return Err("pid field not found".into());
         }
         if let Some(v) = rsyscall.get(b"ppid") {
-            match v.value {
-                Value::Number(Number::Dec(n)) => p.ppid = *n as u32,
+            match v {
+                Value::Number(Number::Dec(n)) => p.ppid = n as u32,
                 _ => return Err("ppid field is not numeric".into()),
             }
         } else {

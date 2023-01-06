@@ -163,139 +163,139 @@ const EXPIRE_DONE_TIMEOUT: u64 = 120_000;
 
 /// generate translation of SocketAddr enum to a format similar to
 /// what auditd log_format=ENRICHED produces
-fn translate_socketaddr(rv: &mut Record, sa: SocketAddr) -> Value {
-    let f = SimpleKey::Literal("saddr_fam");
+fn translate_socketaddr(rv: &mut Record, sa: SocketAddr) -> RecordValue {
+    let f = SimpleRecordKey::Literal("saddr_fam");
     let m = match sa {
         SocketAddr::Local(sa) => {
             vec![
-                (f, SimpleValue::Str(rv.put("local"))),
+                (f, SimpleRecordValue::Str(rv.put("local"))),
                 (
-                    SimpleKey::Literal("path"),
-                    SimpleValue::Str(rv.put(&sa.path)),
+                    SimpleRecordKey::Literal("path"),
+                    SimpleRecordValue::Str(rv.put(&sa.path)),
                 ),
             ]
         }
         SocketAddr::Inet(sa) => {
             vec![
-                (f, SimpleValue::Str(rv.put("inet"))),
+                (f, SimpleRecordValue::Str(rv.put("inet"))),
                 (
-                    SimpleKey::Literal("addr"),
-                    SimpleValue::Str(rv.put(format!("{}", sa.ip()))),
+                    SimpleRecordKey::Literal("addr"),
+                    SimpleRecordValue::Str(rv.put(format!("{}", sa.ip()))),
                 ),
                 (
-                    SimpleKey::Literal("port"),
-                    SimpleValue::Number(Number::Dec(sa.port().into())),
+                    SimpleRecordKey::Literal("port"),
+                    SimpleRecordValue::Number(Number::Dec(sa.port().into())),
                 ),
             ]
         }
         SocketAddr::AX25(sa) => {
             vec![
-                (f, SimpleValue::Str(rv.put("ax25"))),
+                (f, SimpleRecordValue::Str(rv.put("ax25"))),
                 (
-                    SimpleKey::Literal("call"),
-                    SimpleValue::Str(rv.put(&sa.call)),
+                    SimpleRecordKey::Literal("call"),
+                    SimpleRecordValue::Str(rv.put(&sa.call)),
                 ),
             ]
         }
         SocketAddr::ATMPVC(sa) => {
             vec![
-                (f, SimpleValue::Str(rv.put("atmpvc"))),
+                (f, SimpleRecordValue::Str(rv.put("atmpvc"))),
                 (
-                    SimpleKey::Literal("itf"),
-                    SimpleValue::Number(Number::Dec(sa.itf.into())),
+                    SimpleRecordKey::Literal("itf"),
+                    SimpleRecordValue::Number(Number::Dec(sa.itf.into())),
                 ),
                 (
-                    SimpleKey::Literal("vpi"),
-                    SimpleValue::Number(Number::Dec(sa.vpi.into())),
+                    SimpleRecordKey::Literal("vpi"),
+                    SimpleRecordValue::Number(Number::Dec(sa.vpi.into())),
                 ),
                 (
-                    SimpleKey::Literal("vci"),
-                    SimpleValue::Number(Number::Dec(sa.vci.into())),
+                    SimpleRecordKey::Literal("vci"),
+                    SimpleRecordValue::Number(Number::Dec(sa.vci.into())),
                 ),
             ]
         }
         SocketAddr::X25(sa) => {
             vec![
-                (f, SimpleValue::Str(rv.put("x25"))),
+                (f, SimpleRecordValue::Str(rv.put("x25"))),
                 (
-                    SimpleKey::Literal("addr"),
-                    SimpleValue::Str(rv.put(&sa.address)),
+                    SimpleRecordKey::Literal("addr"),
+                    SimpleRecordValue::Str(rv.put(&sa.address)),
                 ),
             ]
         }
         SocketAddr::IPX(sa) => {
             vec![
-                (f, SimpleValue::Str(rv.put("ipx"))),
+                (f, SimpleRecordValue::Str(rv.put("ipx"))),
                 (
-                    SimpleKey::Literal("network"),
-                    SimpleValue::Number(Number::Hex(sa.network.into())),
+                    SimpleRecordKey::Literal("network"),
+                    SimpleRecordValue::Number(Number::Hex(sa.network.into())),
                 ),
                 (
-                    SimpleKey::Literal("node"),
-                    SimpleValue::Str(rv.put(format!(
+                    SimpleRecordKey::Literal("node"),
+                    SimpleRecordValue::Str(rv.put(format!(
                         "{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
                         sa.node[0], sa.node[1], sa.node[2], sa.node[3], sa.node[4], sa.node[5]
                     ))),
                 ),
                 (
-                    SimpleKey::Literal("port"),
-                    SimpleValue::Number(Number::Dec(sa.port.into())),
+                    SimpleRecordKey::Literal("port"),
+                    SimpleRecordValue::Number(Number::Dec(sa.port.into())),
                 ),
                 (
-                    SimpleKey::Literal("type"),
-                    SimpleValue::Number(Number::Dec(sa.typ.into())),
+                    SimpleRecordKey::Literal("type"),
+                    SimpleRecordValue::Number(Number::Dec(sa.typ.into())),
                 ),
             ]
         }
         SocketAddr::Inet6(sa) => {
             vec![
-                (f, SimpleValue::Str(rv.put("inet6"))),
+                (f, SimpleRecordValue::Str(rv.put("inet6"))),
                 (
-                    SimpleKey::Literal("addr"),
-                    SimpleValue::Str(rv.put(format!("{}", sa.ip()))),
+                    SimpleRecordKey::Literal("addr"),
+                    SimpleRecordValue::Str(rv.put(format!("{}", sa.ip()))),
                 ),
                 (
-                    SimpleKey::Literal("port"),
-                    SimpleValue::Number(Number::Dec(sa.port().into())),
+                    SimpleRecordKey::Literal("port"),
+                    SimpleRecordValue::Number(Number::Dec(sa.port().into())),
                 ),
                 (
-                    SimpleKey::Literal("flowinfo"),
-                    SimpleValue::Number(Number::Dec(sa.flowinfo().into())),
+                    SimpleRecordKey::Literal("flowinfo"),
+                    SimpleRecordValue::Number(Number::Dec(sa.flowinfo().into())),
                 ),
                 (
-                    SimpleKey::Literal("scope_id"),
-                    SimpleValue::Number(Number::Dec(sa.scope_id().into())),
+                    SimpleRecordKey::Literal("scope_id"),
+                    SimpleRecordValue::Number(Number::Dec(sa.scope_id().into())),
                 ),
             ]
         }
         SocketAddr::Netlink(sa) => {
             vec![
-                (f, SimpleValue::Str(rv.put("netlink"))),
+                (f, SimpleRecordValue::Str(rv.put("netlink"))),
                 (
-                    SimpleKey::Literal("pid"),
-                    SimpleValue::Number(Number::Dec(sa.pid.into())),
+                    SimpleRecordKey::Literal("pid"),
+                    SimpleRecordValue::Number(Number::Dec(sa.pid.into())),
                 ),
                 (
-                    SimpleKey::Literal("groups"),
-                    SimpleValue::Number(Number::Hex(sa.groups.into())),
+                    SimpleRecordKey::Literal("groups"),
+                    SimpleRecordValue::Number(Number::Hex(sa.groups.into())),
                 ),
             ]
         }
         SocketAddr::VM(sa) => {
             vec![
-                (f, SimpleValue::Str(rv.put("vsock"))),
+                (f, SimpleRecordValue::Str(rv.put("vsock"))),
                 (
-                    SimpleKey::Literal("cid"),
-                    SimpleValue::Number(Number::Dec(sa.cid.into())),
+                    SimpleRecordKey::Literal("cid"),
+                    SimpleRecordValue::Number(Number::Dec(sa.cid.into())),
                 ),
                 (
-                    SimpleKey::Literal("port"),
-                    SimpleValue::Number(Number::Dec(sa.port.into())),
+                    SimpleRecordKey::Literal("port"),
+                    SimpleRecordValue::Number(Number::Dec(sa.port.into())),
                 ),
             ]
         }
     };
-    Value::Map(m)
+    RecordValue::Map(m)
 }
 
 /// Returns a script name from path if exe's dev / inode don't match
@@ -313,9 +313,9 @@ fn path_script_name(path: &Record, pid: u32, cwd: &[u8], exe: &[u8]) -> Option<N
     let mut name = None;
     for (k, v) in path {
         if k == "name" {
-            if let Value::Str(r, _) = v.value {
+            if let Value::Str(r, _) = v {
                 let mut pb = PathBuf::new();
-                let s = Path::new(OsStr::from_bytes(&path.raw[r.clone()]));
+                let s = Path::new(OsStr::from_bytes(&r));
                 if !s.is_absolute() {
                     pb.push(OsStr::from_bytes(cwd));
                 }
@@ -336,13 +336,13 @@ fn path_script_name(path: &Record, pid: u32, cwd: &[u8], exe: &[u8]) -> Option<N
                 name = Some(NVec::from(tpb.as_os_str().as_bytes()))
             }
         } else if k == "inode" {
-            if let Value::Number(Number::Dec(i)) = v.value {
-                p_inode = Some(*i as _);
+            if let Value::Number(Number::Dec(i)) = v {
+                p_inode = Some(i as _);
             }
         } else if k == "dev" {
-            if let Value::Str(r, _) = v.value {
+            if let Value::Str(r, _) = v {
                 let mut d = 0;
-                let value = String::from_utf8_lossy(&v.raw[r.clone()]);
+                let value = String::from_utf8_lossy(&r);
                 for p in value.split(|c| c == ':') {
                     if let Ok(parsed) = u64::from_str_radix(p, 16) {
                         d <<= 8;
@@ -424,13 +424,18 @@ impl<'a> Coalesce<'a> {
     /// IDs that can't be resolved are translated into "unknown(n)".
     /// `(uint32)-1` is translated into "unset".
     #[inline(always)]
-    fn translate_userdb(&mut self, rv: &mut Record, k: &Key, v: &Value) -> Option<(Key, Value)> {
+    fn translate_userdb(
+        &mut self,
+        rv: &mut Record,
+        k: &Key,
+        v: &RecordValue,
+    ) -> Option<(Key, RecordValue)> {
         if !self.settings.translate_userdb {
             return None;
         }
         match k {
             Key::NameUID(r) => {
-                if let Value::Number(Number::Dec(d)) = v {
+                if let RecordValue::Number(Number::Dec(d)) = v {
                     let translated = if *d == 0xffffffff {
                         "unset".to_string()
                     } else if let Some(user) = self.userdb.get_user(*d as u32) {
@@ -440,12 +445,12 @@ impl<'a> Coalesce<'a> {
                     };
                     return Some((
                         Key::NameTranslated(r.clone()),
-                        Value::Str(rv.put(translated), Quote::Double),
+                        RecordValue::Str(rv.put(translated), Quote::Double),
                     ));
                 }
             }
             Key::NameGID(r) => {
-                if let Value::Number(Number::Dec(d)) = v {
+                if let RecordValue::Number(Number::Dec(d)) = v {
                     let translated = if *d == 0xffffffff {
                         "unset".to_string()
                     } else if let Some(group) = self.userdb.get_group(*d as u32) {
@@ -455,7 +460,7 @@ impl<'a> Coalesce<'a> {
                     };
                     return Some((
                         Key::NameTranslated(r.clone()),
-                        Value::Str(rv.put(translated), Quote::Double),
+                        RecordValue::Str(rv.put(translated), Quote::Double),
                     ));
                 }
             }
@@ -466,9 +471,14 @@ impl<'a> Coalesce<'a> {
 
     /// Enrich "pid" entries using `ppid`, `exe`, `ID` (generating
     /// event id) from the shadow process table
-    fn enrich_generic_pid(&mut self, rv: &mut Record, k: &Key, v: &Value) -> Option<(Key, Value)> {
+    fn enrich_generic_pid(
+        &mut self,
+        rv: &mut Record,
+        k: &Key,
+        v: &RecordValue,
+    ) -> Option<(Key, RecordValue)> {
         let pid = match v {
-            Value::Number(Number::Dec(n)) => *n,
+            RecordValue::Number(Number::Dec(n)) => *n,
             _ => return None,
         };
         if !self.settings.enrich_pid {
@@ -484,20 +494,23 @@ impl<'a> Coalesce<'a> {
                     let mut m = Vec::with_capacity(3);
                     if let Some(id) = proc.event_id {
                         m.push((
-                            SimpleKey::Literal("ID"),
-                            SimpleValue::Str(rv.put(format!("{}", id))),
+                            SimpleRecordKey::Literal("ID"),
+                            SimpleRecordValue::Str(rv.put(format!("{}", id))),
                         ));
                     }
                     if let Some(exe) = &proc.exe {
-                        m.push((SimpleKey::Literal("exe"), SimpleValue::Str(rv.put(exe))));
+                        m.push((
+                            SimpleRecordKey::Literal("exe"),
+                            SimpleRecordValue::Str(rv.put(exe)),
+                        ));
                     }
                     if proc.ppid != 0 {
                         m.push((
-                            SimpleKey::Literal("ppid"),
-                            SimpleValue::Number(Number::Dec(proc.ppid.into())),
+                            SimpleRecordKey::Literal("ppid"),
+                            SimpleRecordValue::Number(Number::Dec(proc.ppid.into())),
                         ));
                     }
-                    Some((key, Value::Map(m)))
+                    Some((key, RecordValue::Map(m)))
                 }
             }
             _ => None,
@@ -548,7 +561,7 @@ impl<'a> Coalesce<'a> {
                         continue;
                     }
                     (Key::ArgLen(_), _) => continue,
-                    (Key::Common(c), Value::Number(n)) => match (c, n) {
+                    (Key::Common(c), RecordValue::Number(n)) => match (c, n) {
                         (Common::Arch, Number::Hex(n)) if arch.is_none() => arch = Some(*n as u32),
                         (Common::Syscall, Number::Dec(n)) if syscall.is_none() => {
                             syscall = Some(*n as u32)
@@ -557,13 +570,13 @@ impl<'a> Coalesce<'a> {
                         (Common::PPid, Number::Dec(n)) if ppid.is_none() => ppid = Some(*n as u32),
                         _ => (),
                     },
-                    (Key::Common(c), Value::Str(r, _)) => match c {
+                    (Key::Common(c), RecordValue::Str(r, _)) => match c {
                         Common::Comm if comm.is_none() => comm = Some(rv.raw[r.clone()].into()),
                         Common::Exe if exe.is_none() => exe = Some(rv.raw[r.clone()].into()),
                         Common::Key if key.is_none() => key = Some(rv.raw[r.clone()].into()),
                         _ => (),
                     },
-                    (Key::Name(name), Value::Str(_, _)) => {
+                    (Key::Name(name), RecordValue::Str(_, _)) => {
                         match name.as_ref() {
                             b"ARCH" | b"SYSCALL" if self.settings.translate_universal => continue,
                             _ => (),
@@ -577,34 +590,34 @@ impl<'a> Coalesce<'a> {
                 };
                 new.push((k.clone(), v.clone()));
             }
-            new.push((Key::Literal("ARGV"), Value::List(argv)));
+            new.push((Key::Literal("ARGV"), RecordValue::List(argv)));
             rv.elems = new;
             rv.extend(nrv);
         }
 
         if let Some(EventValues::Single(rv)) = ev.body.get_mut(&EXECVE) {
-            let mut new: Vec<(Key, Value)> = Vec::with_capacity(2);
-            let mut argv: Vec<Value> = Vec::with_capacity(1);
+            let mut new: Vec<(Key, RecordValue)> = Vec::with_capacity(2);
+            let mut argv: Vec<RecordValue> = Vec::with_capacity(1);
             for (k, v) in &rv.elems {
                 match k {
                     Key::ArgLen(_) => continue,
                     Key::Arg(i, None) => {
                         let idx = *i as usize;
                         if argv.len() <= idx {
-                            argv.resize(idx + 1, Value::Empty);
+                            argv.resize(idx + 1, RecordValue::Empty);
                         };
                         argv[idx] = v.clone();
                     }
                     Key::Arg(i, Some(f)) => {
                         let idx = *i as usize;
                         if argv.len() <= idx {
-                            argv.resize(idx + 1, Value::Empty);
-                            argv[idx] = Value::Segments(Vec::new());
+                            argv.resize(idx + 1, RecordValue::Empty);
+                            argv[idx] = RecordValue::Segments(Vec::new());
                         }
-                        if let Some(Value::Segments(l)) = argv.get_mut(idx) {
+                        if let Some(RecordValue::Segments(l)) = argv.get_mut(idx) {
                             let frag = *f as usize;
                             let r = match v {
-                                Value::Str(r, _) => r,
+                                RecordValue::Str(r, _) => r,
                                 _ => &Range { start: 0, end: 0 }, // FIXME
                             };
                             if l.len() <= frag {
@@ -638,7 +651,7 @@ impl<'a> Coalesce<'a> {
                                 };
                             } else {
                                 if let Some((args, bytes)) = skipped {
-                                    filtered.push(Value::Skipped((args, bytes)));
+                                    filtered.push(RecordValue::Skipped((args, bytes)));
                                     skipped = None;
                                 }
                                 filtered.push(arg.clone());
@@ -652,13 +665,13 @@ impl<'a> Coalesce<'a> {
 
             // ARGV
             if self.settings.execve_argv_list {
-                new.push((Key::Literal("ARGV"), Value::List(argv.clone())));
+                new.push((Key::Literal("ARGV"), RecordValue::List(argv.clone())));
             }
             // ARGV_STR
             if self.settings.execve_argv_string {
                 new.push((
                     Key::Literal("ARGV_STR"),
-                    Value::StringifiedList(argv.clone()),
+                    RecordValue::StringifiedList(argv.clone()),
                 ));
             }
 
@@ -668,9 +681,14 @@ impl<'a> Coalesce<'a> {
                     if let Ok(vars) = get_environ(pid, |k| self.settings.execve_env.contains(k)) {
                         let map = vars
                             .iter()
-                            .map(|(k, v)| (SimpleKey::Str(rv.put(k)), SimpleValue::Str(rv.put(v))))
+                            .map(|(k, v)| {
+                                (
+                                    SimpleRecordKey::Str(rv.put(k)),
+                                    SimpleRecordValue::Str(rv.put(v)),
+                                )
+                            })
                             .collect();
-                        new.push((Key::Literal("ENV"), Value::Map(map)));
+                        new.push((Key::Literal("ENV"), RecordValue::Map(map)));
                     }
                 }
                 _ => (),
@@ -739,8 +757,8 @@ impl<'a> Coalesce<'a> {
                     let mut cwd = &b"/"[..];
                     if let Some(EventValues::Single(r)) = ev.body.get(&CWD) {
                         if let Some(rv) = r.get("cwd") {
-                            if let Value::Str(r, _) = rv.value {
-                                cwd = &rv.raw[r.clone()];
+                            if let Value::Str(r, _) = rv {
+                                cwd = r;
                             }
                         }
                     };
@@ -777,7 +795,7 @@ impl<'a> Coalesce<'a> {
                         let mut new = Vec::with_capacity(rv.elems.len());
                         let mut nrv = Record::default();
                         for (k, v) in &rv.elems {
-                            if let (Key::Name(name), Value::Str(vr, _)) = (k, v) {
+                            if let (Key::Name(name), RecordValue::Str(vr, _)) = (k, v) {
                                 match name.as_ref() {
                                     b"saddr" if self.settings.translate_universal => {
                                         if let Ok(sa) = SocketAddr::parse(&rv.raw[vr.clone()]) {
@@ -801,16 +819,13 @@ impl<'a> Coalesce<'a> {
                 }
                 (&PROCTITLE, EventValues::Single(rv)) => {
                     if let Some(v) = rv.get(b"proctitle") {
-                        if let Value::Str(r, _) = v.value {
+                        if let Value::Str(r, _) = v {
                             let mut argv: Vec<Value> = Vec::new();
-                            let mut prev = r.start;
-                            for i in r.start..=r.end {
-                                if (i == r.end || rv.raw[i] == 0) && !(prev..i).is_empty() {
-                                    argv.push(Value::Str(prev..i, Quote::None));
-                                    prev = i + 1;
-                                }
-                            }
-                            rv.elems = vec![(Key::Literal("ARGV"), Value::List(argv))];
+                            let argv = r
+                                .split(|c| *c == 0)
+                                .map(|s| Vec::from(s))
+                                .collect::<Vec<_>>();
+                            // rv.elems = vec![(Key::Literal("ARGV"), Value::List(argv))];
                         }
                     }
                 }
@@ -847,21 +862,21 @@ impl<'a> Coalesce<'a> {
             if let Some(id) = parent.event_id {
                 let r = pi.put(format!("{}", id));
                 pi.elems
-                    .push((Key::Literal("ID"), Value::Str(r, Quote::None)));
+                    .push((Key::Literal("ID"), RecordValue::Str(r, Quote::None)));
             }
             if let Some(comm) = &parent.comm {
                 let r = pi.put(&comm);
                 pi.elems
-                    .push((Key::Literal("comm"), Value::Str(r, Quote::None)));
+                    .push((Key::Literal("comm"), RecordValue::Str(r, Quote::None)));
             }
             if let Some(exe) = &parent.exe {
                 let r = pi.put(&exe);
                 pi.elems
-                    .push((Key::Literal("exe"), Value::Str(r, Quote::None)));
+                    .push((Key::Literal("exe"), RecordValue::Str(r, Quote::None)));
             }
             let kv = (
                 Key::Literal("ppid"),
-                Value::Number(Number::Dec(parent.ppid as i64)),
+                RecordValue::Number(Number::Dec(parent.ppid as i64)),
             );
             pi.elems.push(kv);
             ev.body.insert(PARENT_INFO, EventValues::Single(pi));
@@ -871,46 +886,54 @@ impl<'a> Coalesce<'a> {
             if let (true, Some(an), Some(sn)) =
                 (self.settings.translate_universal, arch_name, syscall_name)
             {
-                sc.elems.push((Key::Literal("ARCH"), Value::Literal(an)));
-                sc.elems.push((Key::Literal("SYSCALL"), Value::Literal(sn)));
+                sc.elems
+                    .push((Key::Literal("ARCH"), RecordValue::Literal(an)));
+                sc.elems
+                    .push((Key::Literal("SYSCALL"), RecordValue::Literal(sn)));
             }
 
             if let (true, Some(parent)) = (self.settings.enrich_pid, &parent) {
                 let mut m = Vec::with_capacity(4);
                 if let Some(id) = &parent.event_id {
                     m.push((
-                        SimpleKey::Literal("EVENT_ID"),
-                        SimpleValue::Str(sc.put(format!("{}", id))),
+                        SimpleRecordKey::Literal("EVENT_ID"),
+                        SimpleRecordValue::Str(sc.put(format!("{}", id))),
                     ));
                 }
                 if let Some(comm) = &parent.comm {
-                    m.push((SimpleKey::Literal("comm"), SimpleValue::Str(sc.put(comm))));
+                    m.push((
+                        SimpleRecordKey::Literal("comm"),
+                        SimpleRecordValue::Str(sc.put(comm)),
+                    ));
                 }
                 if let Some(exe) = &parent.exe {
-                    m.push((SimpleKey::Literal("exe"), SimpleValue::Str(sc.put(exe))));
+                    m.push((
+                        SimpleRecordKey::Literal("exe"),
+                        SimpleRecordValue::Str(sc.put(exe)),
+                    ));
                 }
                 if parent.ppid != 0 {
                     m.push((
-                        SimpleKey::Literal("ppid"),
-                        SimpleValue::Number(Number::Dec(parent.ppid.into())),
+                        SimpleRecordKey::Literal("ppid"),
+                        SimpleRecordValue::Number(Number::Dec(parent.ppid.into())),
                     ));
                 }
-                sc.elems.push((Key::Literal("PPID"), Value::Map(m)));
+                sc.elems.push((Key::Literal("PPID"), RecordValue::Map(m)));
             }
 
             if let (true, Some(script)) = (self.settings.enrich_script, script) {
                 let (k, v) = (
                     Key::Literal("SCRIPT"),
-                    Value::Str(sc.put(script), Quote::None),
+                    RecordValue::Str(sc.put(script), Quote::None),
                 );
                 sc.elems.push((k, v));
             }
 
             if let Some(proc) = proc {
                 if let (true, Some(event_id)) = (self.settings.enrich_pid, proc.event_id) {
-                    let m = Value::Map(vec![(
-                        SimpleKey::Literal("EVENT_ID"),
-                        SimpleValue::Str(sc.put(format!("{}", event_id))),
+                    let m = RecordValue::Map(vec![(
+                        SimpleRecordKey::Literal("EVENT_ID"),
+                        SimpleRecordValue::Str(sc.put(format!("{}", event_id))),
                     )]);
                     sc.elems.push((Key::Literal("PID"), m));
                 }
@@ -926,16 +949,17 @@ impl<'a> Coalesce<'a> {
                     let labels = proc
                         .labels
                         .iter()
-                        .map(|l| Value::Str(sc.put(l), Quote::None))
+                        .map(|l| RecordValue::Str(sc.put(l), Quote::None))
                         .collect::<Vec<_>>();
-                    sc.elems.push((Key::Literal("LABELS"), Value::List(labels)));
+                    sc.elems
+                        .push((Key::Literal("LABELS"), RecordValue::List(labels)));
                 }
 
                 if let (true, Some(c)) = (self.settings.enrich_container, &proc.container_info) {
                     let mut ci = Record::default();
                     let r = ci.put(&c.id);
                     ci.elems
-                        .push((Key::Literal("ID"), Value::Str(r, Quote::None)));
+                        .push((Key::Literal("ID"), RecordValue::Str(r, Quote::None)));
                     ev.body.insert(CONTAINER_INFO, EventValues::Single(ci));
                 }
             }
