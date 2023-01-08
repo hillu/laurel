@@ -375,13 +375,13 @@ impl<'a> Value<'a> {
                     .map(|(k, v)| (SimpleKey::from_rv(k, raw), SimpleValue::from_rv(v, raw)))
                     .collect(),
             ),
-            RecordValue::Number(n) => Value::Number(n.clone()),
+            RecordValue::Number(n) => Value::Number(*n),
             RecordValue::Skipped((a, b)) => Value::Skipped((*a, *b)),
             RecordValue::Literal(s) => Value::Literal(s),
         }
     }
 
-    fn to_rv(&self, mut raw: &'a mut Vec<u8>) -> RecordValue {
+    fn to_rv(&self, raw: &'a mut Vec<u8>) -> RecordValue {
         match self {
             Value::Empty => RecordValue::Empty,
             Value::Str(r, q) => {
@@ -406,13 +406,13 @@ impl<'a> Value<'a> {
                     })
                     .collect(),
             ),
-            Value::List(v) => RecordValue::List(v.iter().map(|el| el.to_rv(&mut raw)).collect()),
+            Value::List(v) => RecordValue::List(v.iter().map(|el| el.to_rv(raw)).collect()),
             Value::StringifiedList(v) => {
-                RecordValue::StringifiedList(v.iter().map(|el| el.to_rv(&mut raw)).collect())
+                RecordValue::StringifiedList(v.iter().map(|el| el.to_rv(raw)).collect())
             }
             Value::Map(v) => RecordValue::Map(
                 v.iter()
-                    .map(|(k, v)| (k.to_rv(&mut raw), v.to_rv(&mut raw)))
+                    .map(|(k, v)| (k.to_rv(raw), v.to_rv(raw)))
                     .collect(),
             ),
             Value::Number(n) => RecordValue::Number(*n),
@@ -496,7 +496,7 @@ impl<'a> SimpleValue<'a> {
     fn from_rv(r: &SimpleRecordValue, raw: &'a [u8]) -> Self {
         match r {
             SimpleRecordValue::Str(r) => SimpleValue::Str(&raw[r.clone()]),
-            SimpleRecordValue::Number(n) => SimpleValue::Number(n.clone()),
+            SimpleRecordValue::Number(n) => SimpleValue::Number(*n),
         }
     }
 
@@ -511,7 +511,7 @@ impl<'a> SimpleValue<'a> {
                     SimpleRecordValue::Str(offset..offset + s.len())
                 }
             }
-            SimpleValue::Number(n) => SimpleRecordValue::Number(n.clone()),
+            SimpleValue::Number(n) => SimpleRecordValue::Number(*n),
         }
     }
 }
@@ -608,6 +608,10 @@ impl Record {
         self.elems.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.elems.is_empty()
+    }
+
     /// Retrieves the first value found for a given key
     pub fn get<K: AsRef<[u8]>>(&self, key: K) -> Option<Value> {
         let key = key.as_ref();
@@ -629,7 +633,7 @@ impl Record {
 }
 
 impl<'a> IntoIterator for &'a Record {
-    type Item = (&'a Key, Value<'a>);
+    type Item = (Key, Value<'a>);
     type IntoIter = RecordIterator<'a>;
     fn into_iter(self) -> Self::IntoIter {
         RecordIterator { count: 0, r: self }
@@ -642,13 +646,13 @@ pub struct RecordIterator<'a> {
 }
 
 impl<'a> Iterator for RecordIterator<'a> {
-    type Item = (&'a Key, Value<'a>);
+    type Item = (Key, Value<'a>);
     fn next(&mut self) -> Option<Self::Item> {
         self.count += 1;
         self.r
             .elems
             .get(self.count - 1)
-            .map(|(key, value)| (key, Value::from_rv(value, &self.r.raw)))
+            .map(|(key, value)| (key.clone(), Value::from_rv(value, &self.r.raw)))
     }
 }
 
@@ -704,7 +708,7 @@ impl TryFrom<Value<'_>> for Vec<Vec<u8>> {
 impl Debug for Value<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Value::Str(r, _q) => write!(f, "Str:<{}>", &String::from_utf8_lossy(&r)),
+            Value::Str(r, _q) => write!(f, "Str:<{}>", &String::from_utf8_lossy(r)),
             Value::Empty => write!(f, "Empty"),
             Value::Segments(segs) => {
                 write!(f, "Segments<")?;
@@ -712,7 +716,7 @@ impl Debug for Value<'_> {
                     if n > 0 {
                         write!(f, ", ")?;
                     }
-                    write!(f, "{}", String::from_utf8_lossy(&r))?;
+                    write!(f, "{}", String::from_utf8_lossy(r))?;
                 }
                 write!(f, ">")
             }
@@ -724,11 +728,11 @@ impl Debug for Value<'_> {
                     }
                     match v {
                         Value::Str(r, _) => {
-                            write!(f, "{}", String::from_utf8_lossy(&r))?;
+                            write!(f, "{}", String::from_utf8_lossy(r))?;
                         }
                         Value::Segments(rs) => {
                             for r in rs {
-                                write!(f, "{}", String::from_utf8_lossy(&r))?;
+                                write!(f, "{}", String::from_utf8_lossy(r))?;
                             }
                         }
                         Value::Number(n) => write!(f, "{:?}", n)?,
@@ -753,11 +757,11 @@ impl Debug for Value<'_> {
                     }
                     match v {
                         Value::Str(r, _) => {
-                            write!(f, "{}", String::from_utf8_lossy(&r))?;
+                            write!(f, "{}", String::from_utf8_lossy(r))?;
                         }
                         Value::Segments(rs) => {
                             for r in rs {
-                                write!(f, "{}", String::from_utf8_lossy(&r))?;
+                                write!(f, "{}", String::from_utf8_lossy(r))?;
                             }
                         }
                         Value::Number(n) => write!(f, "{:?}", n)?,
@@ -781,7 +785,7 @@ impl Debug for Value<'_> {
                         write!(f, " ")?;
                     }
                     let v = match &v.1 {
-                        SimpleValue::Str(r) => String::from_utf8_lossy(&r).into(),
+                        SimpleValue::Str(r) => String::from_utf8_lossy(r).into(),
                         SimpleValue::Number(n) => format!("{:?}", n),
                     };
                     write!(f, "{}={}", n, v)?;

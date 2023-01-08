@@ -313,10 +313,10 @@ fn path_script_name(path: &Record, pid: u32, cwd: &[u8], exe: &[u8]) -> Option<N
     let mut p_inode: Option<u64> = None;
     let mut name = None;
     for (k, v) in path {
-        if k == "name" {
+        if &k == "name" {
             if let Value::Str(r, _) = v {
                 let mut pb = PathBuf::new();
-                let s = Path::new(OsStr::from_bytes(&r));
+                let s = Path::new(OsStr::from_bytes(r));
                 if !s.is_absolute() {
                     pb.push(OsStr::from_bytes(cwd));
                 }
@@ -336,14 +336,14 @@ fn path_script_name(path: &Record, pid: u32, cwd: &[u8], exe: &[u8]) -> Option<N
                 }
                 name = Some(NVec::from(tpb.as_os_str().as_bytes()))
             }
-        } else if k == "inode" {
+        } else if &k == "inode" {
             if let Value::Number(Number::Dec(i)) = v {
                 p_inode = Some(i as _);
             }
-        } else if k == "dev" {
+        } else if &k == "dev" {
             if let Value::Str(r, _) = v {
                 let mut d = 0;
-                let value = String::from_utf8_lossy(&r);
+                let value = String::from_utf8_lossy(r);
                 for p in value.split(|c| c == ':') {
                     if let Ok(parsed) = u64::from_str_radix(p, 16) {
                         d <<= 8;
@@ -478,9 +478,7 @@ impl<'a> Coalesce<'a> {
                     Some(p) => p,
                     None => return,
                 };
-                if proc.event_id.is_none() && proc.exe.is_none() && proc.ppid == 0 {
-                    return;
-                } else {
+                if proc.event_id.is_some() || proc.exe.is_some() || proc.ppid != 0 {
                     let mut m = Vec::with_capacity(3);
                     let id = proc.event_id.map(|id| id.to_string());
                     if let Some(id) = &id {
@@ -537,7 +535,7 @@ impl<'a> Coalesce<'a> {
             rv.raw.reserve(extra);
             let mut nrv = Record::default();
             let mut argv = Vec::with_capacity(4);
-            for (k, ref v) in rv.into_iter() {
+            for (ref k, ref v) in rv.into_iter() {
                 match (k, v) {
                     (Key::Arg(_, None), _) => {
                         // FIXME: check argv length
@@ -567,7 +565,7 @@ impl<'a> Coalesce<'a> {
                         };
                     }
                     _ => {
-                        self.translate_userdb(&mut nrv, k, &v);
+                        self.translate_userdb(&mut nrv, k, v);
                     }
                 };
                 nrv.push((k.clone(), v.clone()));
@@ -583,27 +581,27 @@ impl<'a> Coalesce<'a> {
                 match k {
                     Key::ArgLen(_) => continue,
                     Key::Arg(i, None) => {
-                        let idx = *i as usize;
+                        let idx = i as usize;
                         if argv.len() <= idx {
                             argv.resize(idx + 1, Value::Empty);
                         };
                         argv[idx] = v.clone();
                     }
                     Key::Arg(i, Some(f)) => {
-                        let idx = *i as usize;
+                        let idx = i as usize;
                         if argv.len() <= idx {
                             argv.resize(idx + 1, Value::Empty);
                             argv[idx] = Value::Segments(Vec::new());
                         }
                         if let Some(Value::Segments(l)) = argv.get_mut(idx) {
-                            let frag = *f as usize;
+                            let frag = f as usize;
                             let r = match v {
                                 Value::Str(r, _) => r,
                                 _ => "".as_bytes(), // FIXME
                             };
                             if l.len() <= frag {
                                 l.resize(frag + 1, "".as_bytes());
-                                l[frag] = r.clone();
+                                l[frag] = r;
                             }
                         }
                     }
@@ -732,10 +730,8 @@ impl<'a> Coalesce<'a> {
                 (Some(exe), Some(pid), Some(EventValues::Multi(paths)), true) => {
                     let mut cwd = &b"/"[..];
                     if let Some(EventValues::Single(r)) = ev.body.get(&CWD) {
-                        if let Some(rv) = r.get("cwd") {
-                            if let Value::Str(r, _) = rv {
-                                cwd = r;
-                            }
+                        if let Some(Value::Str(r, _)) = r.get("cwd") {
+                            cwd = r;
                         }
                     };
                     path_script_name(&paths[0], pid, cwd, exe)
@@ -773,7 +769,7 @@ impl<'a> Coalesce<'a> {
                             if let (Key::Name(name), Value::Str(vr, _)) = (k, v) {
                                 match name.as_ref() {
                                     b"saddr" if self.settings.translate_universal => {
-                                        if let Ok(sa) = SocketAddr::parse(&vr) {
+                                        if let Ok(sa) = SocketAddr::parse(vr) {
                                             translate_socketaddr(&mut nrv, sa);
                                             continue;
                                         }
@@ -787,23 +783,21 @@ impl<'a> Coalesce<'a> {
                     }
                 }
                 (&PROCTITLE, EventValues::Single(ref mut rv)) => {
-                    if let Some(v) = rv.get(b"proctitle") {
-                        if let Value::Str(r, _) = v {
-                            let argv = r
-                                .split(|c| *c == 0)
-                                .map(|s| Value::Str(s, Quote::None))
-                                .collect::<Vec<_>>();
-                            let mut new = Record::default();
-                            new.push((Key::Literal("ARGV"), Value::List(argv)));
-                            *rv = new;
-                        }
+                    if let Some(Value::Str(r, _)) = rv.get(b"proctitle") {
+                        let argv = r
+                            .split(|c| *c == 0)
+                            .map(|s| Value::Str(s, Quote::None))
+                            .collect::<Vec<_>>();
+                        let mut new = Record::default();
+                        new.push((Key::Literal("ARGV"), Value::List(argv)));
+                        *rv = new;
                     }
                 }
                 (_, EventValues::Single(rv)) => {
                     let mut nrv = Record::default();
                     for (k, v) in rv.into_iter() {
-                        self.translate_userdb(&mut nrv, k, &v);
-                        self.enrich_generic_pid(&mut nrv, k, &v);
+                        self.translate_userdb(&mut nrv, &k, &v);
+                        self.enrich_generic_pid(&mut nrv, &k, &v);
                     }
                     rv.extend(nrv);
                 }
@@ -811,8 +805,8 @@ impl<'a> Coalesce<'a> {
                     for rv in rvs {
                         let mut nrv = Record::default();
                         for (k, v) in rv.into_iter() {
-                            self.translate_userdb(&mut nrv, k, &v);
-                            self.enrich_generic_pid(&mut nrv, k, &v);
+                            self.translate_userdb(&mut nrv, &k, &v);
+                            self.enrich_generic_pid(&mut nrv, &k, &v);
                         }
                         rv.extend(nrv);
                     }
@@ -1212,13 +1206,13 @@ mod test {
             let mut auid = false;
             // UID="root" OLD-AUID="unset" AUID="root"
             for (k, v) in &records[0] {
-                if k == "UID" && &v == "root" {
+                if &k == "UID" && &v == "root" {
                     uid = true;
                 }
-                if k == "OLD-AUID" && &v == "unset" {
+                if &k == "OLD-AUID" && &v == "unset" {
                     old_auid = true;
                 }
-                if k == "AUID" && &v == "root" {
+                if &k == "AUID" && &v == "root" {
                     auid = true;
                 }
             }

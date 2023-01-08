@@ -55,7 +55,7 @@ pub fn parse(
     for (k, v) in body {
         let v = match &v {
             PValue::Empty => RecordValue::Empty,
-            PValue::Number(n) => RecordValue::Number(n.clone()),
+            PValue::Number(n) => RecordValue::Number(*n),
             PValue::Str(s, q) => RecordValue::Str(to_range(&raw, s), *q),
             PValue::List(vs) => RecordValue::List(
                 vs.iter()
