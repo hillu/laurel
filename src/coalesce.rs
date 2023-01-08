@@ -681,19 +681,15 @@ impl<'a> Coalesce<'a> {
                     if let Ok(vars) = get_environ(pid, |k| self.settings.execve_env.contains(k)) {
                         let map = vars
                             .iter()
-                            .map(|(k, v)| {
-                                (
-                                    SimpleRecordKey::Str(rv.put(k)),
-                                    SimpleRecordValue::Str(rv.put(v)),
-                                )
-                            })
+                            .map(|(k, v)| (SimpleKey::Str(k), SimpleValue::Str(v)))
                             .collect();
-                        new.push((Key::Literal("ENV"), RecordValue::Map(map)));
+                        rv.push((Key::Literal("ENV"), Value::Map(map)));
                     }
                 }
                 _ => (),
             };
 
+            // FIXME: This needs to go away
             rv.elems = new;
         }
 
@@ -817,16 +813,16 @@ impl<'a> Coalesce<'a> {
                         rv.extend(nrv);
                     }
                 }
-                (&PROCTITLE, EventValues::Single(rv)) => {
+                (&PROCTITLE, EventValues::Single(ref mut rv)) => {
                     if let Some(v) = rv.get(b"proctitle") {
                         if let Value::Str(r, _) = v {
-                            let mut argv: Vec<Value> = Vec::new();
                             let argv = r
                                 .split(|c| *c == 0)
-                                .map(|s| Vec::from(s))
+                                .map(|s| Value::Str(s, Quote::None))
                                 .collect::<Vec<_>>();
-                            // FIXME
-                            // rv.elems = vec![(Key::Literal("ARGV"), Value::List(argv))];
+                            let mut new = Record::default();
+                            new.push((Key::Literal("ARGV"), Value::List(argv)));
+                            *rv = new;
                         }
                     }
                 }
