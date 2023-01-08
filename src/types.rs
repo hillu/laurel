@@ -597,11 +597,13 @@ impl Record {
         )
     }
 
+    /// Add a key/value pair to record
     pub fn push(&mut self, kv: (Key, Value)) {
         let (k, v) = (kv.0, kv.1.to_rv(&mut self.raw));
         self.elems.push((k, v));
     }
 
+    /// Returns the number of key/value pairs in record
     pub fn len(&self) -> usize {
         self.elems.len()
     }
