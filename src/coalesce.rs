@@ -163,139 +163,141 @@ const EXPIRE_DONE_TIMEOUT: u64 = 120_000;
 
 /// generate translation of SocketAddr enum to a format similar to
 /// what auditd log_format=ENRICHED produces
-fn translate_socketaddr(rv: &mut Record, sa: SocketAddr) -> RecordValue {
-    let f = SimpleRecordKey::Literal("saddr_fam");
-    let m = match sa {
+fn translate_socketaddr(rv: &mut Record, sa: SocketAddr) {
+    let f = SimpleKey::Literal("saddr_fam");
+    match sa {
         SocketAddr::Local(sa) => {
-            vec![
-                (f, SimpleRecordValue::Str(rv.put("local"))),
-                (
-                    SimpleRecordKey::Literal("path"),
-                    SimpleRecordValue::Str(rv.put(&sa.path)),
-                ),
-            ]
+            let m = vec![
+                (f, SimpleValue::Str(&b"local"[..])),
+                (SimpleKey::Literal("path"), SimpleValue::Str(&sa.path)),
+            ];
+            rv.push((Key::Literal("SADDR"), Value::Map(m)));
         }
         SocketAddr::Inet(sa) => {
-            vec![
-                (f, SimpleRecordValue::Str(rv.put("inet"))),
+            let addr = format!("{}", sa.ip());
+            let m = vec![
+                (f, SimpleValue::Str(&b"inet"[..])),
                 (
-                    SimpleRecordKey::Literal("addr"),
-                    SimpleRecordValue::Str(rv.put(format!("{}", sa.ip()))),
+                    SimpleKey::Literal("addr"),
+                    SimpleValue::Str(addr.as_bytes()),
                 ),
                 (
-                    SimpleRecordKey::Literal("port"),
-                    SimpleRecordValue::Number(Number::Dec(sa.port().into())),
+                    SimpleKey::Literal("port"),
+                    SimpleValue::Number(Number::Dec(sa.port().into())),
                 ),
-            ]
+            ];
+            rv.push((Key::Literal("SADDR"), Value::Map(m)));
         }
         SocketAddr::AX25(sa) => {
-            vec![
-                (f, SimpleRecordValue::Str(rv.put("ax25"))),
-                (
-                    SimpleRecordKey::Literal("call"),
-                    SimpleRecordValue::Str(rv.put(&sa.call)),
-                ),
-            ]
+            let m = vec![
+                (f, SimpleValue::Str("ax25".as_bytes())),
+                (SimpleKey::Literal("call"), SimpleValue::Str(&sa.call)),
+            ];
+            rv.push((Key::Literal("SADDR"), Value::Map(m)));
         }
         SocketAddr::ATMPVC(sa) => {
-            vec![
-                (f, SimpleRecordValue::Str(rv.put("atmpvc"))),
+            let m = vec![
+                (f, SimpleValue::Str(&b"atmpvc"[..])),
                 (
-                    SimpleRecordKey::Literal("itf"),
-                    SimpleRecordValue::Number(Number::Dec(sa.itf.into())),
+                    SimpleKey::Literal("itf"),
+                    SimpleValue::Number(Number::Dec(sa.itf.into())),
                 ),
                 (
-                    SimpleRecordKey::Literal("vpi"),
-                    SimpleRecordValue::Number(Number::Dec(sa.vpi.into())),
+                    SimpleKey::Literal("vpi"),
+                    SimpleValue::Number(Number::Dec(sa.vpi.into())),
                 ),
                 (
-                    SimpleRecordKey::Literal("vci"),
-                    SimpleRecordValue::Number(Number::Dec(sa.vci.into())),
+                    SimpleKey::Literal("vci"),
+                    SimpleValue::Number(Number::Dec(sa.vci.into())),
                 ),
-            ]
+            ];
+            rv.push((Key::Literal("SADDR"), Value::Map(m)));
         }
         SocketAddr::X25(sa) => {
-            vec![
-                (f, SimpleRecordValue::Str(rv.put("x25"))),
-                (
-                    SimpleRecordKey::Literal("addr"),
-                    SimpleRecordValue::Str(rv.put(&sa.address)),
-                ),
-            ]
+            let m = vec![
+                (f, SimpleValue::Str(&b"x25"[..])),
+                (SimpleKey::Literal("addr"), SimpleValue::Str(&sa.address)),
+            ];
+            rv.push((Key::Literal("SADDR"), Value::Map(m)));
         }
         SocketAddr::IPX(sa) => {
-            vec![
-                (f, SimpleRecordValue::Str(rv.put("ipx"))),
+            let node = format!(
+                "{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
+                sa.node[0], sa.node[1], sa.node[2], sa.node[3], sa.node[4], sa.node[5]
+            );
+            let m = vec![
+                (f, SimpleValue::Str(&b"ipx"[..])),
                 (
-                    SimpleRecordKey::Literal("network"),
-                    SimpleRecordValue::Number(Number::Hex(sa.network.into())),
+                    SimpleKey::Literal("network"),
+                    SimpleValue::Number(Number::Hex(sa.network.into())),
                 ),
                 (
-                    SimpleRecordKey::Literal("node"),
-                    SimpleRecordValue::Str(rv.put(format!(
-                        "{:02x}{:02x}{:02x}{:02x}{:02x}{:02x}",
-                        sa.node[0], sa.node[1], sa.node[2], sa.node[3], sa.node[4], sa.node[5]
-                    ))),
+                    SimpleKey::Literal("node"),
+                    SimpleValue::Str(node.as_bytes()),
                 ),
                 (
-                    SimpleRecordKey::Literal("port"),
-                    SimpleRecordValue::Number(Number::Dec(sa.port.into())),
+                    SimpleKey::Literal("port"),
+                    SimpleValue::Number(Number::Dec(sa.port.into())),
                 ),
                 (
-                    SimpleRecordKey::Literal("type"),
-                    SimpleRecordValue::Number(Number::Dec(sa.typ.into())),
+                    SimpleKey::Literal("type"),
+                    SimpleValue::Number(Number::Dec(sa.typ.into())),
                 ),
-            ]
+            ];
+            rv.push((Key::Literal("SADDR"), Value::Map(m)));
         }
         SocketAddr::Inet6(sa) => {
-            vec![
-                (f, SimpleRecordValue::Str(rv.put("inet6"))),
+            let addr = format!("{}", sa.ip());
+            let m = vec![
+                (f, SimpleValue::Str(&b"inet6"[..])),
                 (
-                    SimpleRecordKey::Literal("addr"),
-                    SimpleRecordValue::Str(rv.put(format!("{}", sa.ip()))),
+                    SimpleKey::Literal("addr"),
+                    SimpleValue::Str(addr.as_bytes()),
                 ),
                 (
-                    SimpleRecordKey::Literal("port"),
-                    SimpleRecordValue::Number(Number::Dec(sa.port().into())),
+                    SimpleKey::Literal("port"),
+                    SimpleValue::Number(Number::Dec(sa.port().into())),
                 ),
                 (
-                    SimpleRecordKey::Literal("flowinfo"),
-                    SimpleRecordValue::Number(Number::Dec(sa.flowinfo().into())),
+                    SimpleKey::Literal("flowinfo"),
+                    SimpleValue::Number(Number::Dec(sa.flowinfo().into())),
                 ),
                 (
-                    SimpleRecordKey::Literal("scope_id"),
-                    SimpleRecordValue::Number(Number::Dec(sa.scope_id().into())),
+                    SimpleKey::Literal("scope_id"),
+                    SimpleValue::Number(Number::Dec(sa.scope_id().into())),
                 ),
-            ]
+            ];
+            rv.push((Key::Literal("SADDR"), Value::Map(m)));
         }
         SocketAddr::Netlink(sa) => {
-            vec![
-                (f, SimpleRecordValue::Str(rv.put("netlink"))),
+            let m = vec![
+                (f, SimpleValue::Str(&b"netlink"[..])),
                 (
-                    SimpleRecordKey::Literal("pid"),
-                    SimpleRecordValue::Number(Number::Dec(sa.pid.into())),
+                    SimpleKey::Literal("pid"),
+                    SimpleValue::Number(Number::Dec(sa.pid.into())),
                 ),
                 (
-                    SimpleRecordKey::Literal("groups"),
-                    SimpleRecordValue::Number(Number::Hex(sa.groups.into())),
+                    SimpleKey::Literal("groups"),
+                    SimpleValue::Number(Number::Hex(sa.groups.into())),
                 ),
-            ]
+            ];
+            rv.push((Key::Literal("SADDR"), Value::Map(m)));
         }
         SocketAddr::VM(sa) => {
-            vec![
-                (f, SimpleRecordValue::Str(rv.put("vsock"))),
+            let m = vec![
+                (f, SimpleValue::Str(&b"vsock"[..])),
                 (
-                    SimpleRecordKey::Literal("cid"),
-                    SimpleRecordValue::Number(Number::Dec(sa.cid.into())),
+                    SimpleKey::Literal("cid"),
+                    SimpleValue::Number(Number::Dec(sa.cid.into())),
                 ),
                 (
-                    SimpleRecordKey::Literal("port"),
-                    SimpleRecordValue::Number(Number::Dec(sa.port.into())),
+                    SimpleKey::Literal("port"),
+                    SimpleValue::Number(Number::Dec(sa.port.into())),
                 ),
-            ]
+            ];
+            rv.push((Key::Literal("SADDR"), Value::Map(m)));
         }
     };
-    RecordValue::Map(m)
 }
 
 /// Returns a script name from path if exe's dev / inode don't match
@@ -424,96 +426,80 @@ impl<'a> Coalesce<'a> {
     /// IDs that can't be resolved are translated into "unknown(n)".
     /// `(uint32)-1` is translated into "unset".
     #[inline(always)]
-    fn translate_userdb(
-        &mut self,
-        rv: &mut Record,
-        k: &Key,
-        v: &RecordValue,
-    ) -> Option<(Key, RecordValue)> {
+    fn translate_userdb(&mut self, rv: &mut Record, k: &Key, v: &Value) {
         if !self.settings.translate_userdb {
-            return None;
+            return;
         }
-        match k {
-            Key::NameUID(r) => {
-                if let RecordValue::Number(Number::Dec(d)) = v {
-                    let translated = if *d == 0xffffffff {
-                        "unset".to_string()
-                    } else if let Some(user) = self.userdb.get_user(*d as u32) {
-                        user
-                    } else {
-                        format!("unknown({})", d)
-                    };
-                    return Some((
-                        Key::NameTranslated(r.clone()),
-                        RecordValue::Str(rv.put(translated), Quote::Double),
-                    ));
-                }
+        match (k, v) {
+            (Key::NameUID(r), Value::Number(Number::Dec(d))) => {
+                let translated = if *d == 0xffffffff {
+                    "unset".to_string()
+                } else if let Some(user) = self.userdb.get_user(*d as u32) {
+                    user
+                } else {
+                    format!("unknown({})", d)
+                };
+
+                rv.push((
+                    Key::NameTranslated(r.clone()),
+                    Value::Str(translated.as_bytes(), Quote::Double),
+                ));
             }
-            Key::NameGID(r) => {
-                if let RecordValue::Number(Number::Dec(d)) = v {
-                    let translated = if *d == 0xffffffff {
-                        "unset".to_string()
-                    } else if let Some(group) = self.userdb.get_group(*d as u32) {
-                        group
-                    } else {
-                        format!("unknown({})", d)
-                    };
-                    return Some((
-                        Key::NameTranslated(r.clone()),
-                        RecordValue::Str(rv.put(translated), Quote::Double),
-                    ));
-                }
+            (Key::NameGID(r), Value::Number(Number::Dec(d))) => {
+                let translated = if *d == 0xffffffff {
+                    "unset".to_string()
+                } else if let Some(group) = self.userdb.get_group(*d as u32) {
+                    group
+                } else {
+                    format!("unknown({})", d)
+                };
+                rv.push((
+                    Key::NameTranslated(r.clone()),
+                    Value::Str(translated.as_bytes(), Quote::Double),
+                ));
             }
             _ => (),
         };
-        None
     }
 
     /// Enrich "pid" entries using `ppid`, `exe`, `ID` (generating
     /// event id) from the shadow process table
-    fn enrich_generic_pid(
-        &mut self,
-        rv: &mut Record,
-        k: &Key,
-        v: &RecordValue,
-    ) -> Option<(Key, RecordValue)> {
+    fn enrich_generic_pid(&mut self, rv: &mut Record, k: &Key, v: &Value) {
         let pid = match v {
-            RecordValue::Number(Number::Dec(n)) => *n,
-            _ => return None,
+            Value::Number(Number::Dec(n)) => *n,
+            _ => return,
         };
         if !self.settings.enrich_pid {
-            return None;
+            return;
         }
         match &k {
             Key::Name(r) if r.ends_with(b"pid") => {
                 let key = Key::NameTranslated(r.clone());
-                let proc = self.processes.get_process(pid as _)?;
+                let proc = match self.processes.get_process(pid as _) {
+                    Some(p) => p,
+                    None => return,
+                };
                 if proc.event_id.is_none() && proc.exe.is_none() && proc.ppid == 0 {
-                    None
+                    return;
                 } else {
                     let mut m = Vec::with_capacity(3);
-                    if let Some(id) = proc.event_id {
-                        m.push((
-                            SimpleRecordKey::Literal("ID"),
-                            SimpleRecordValue::Str(rv.put(format!("{}", id))),
-                        ));
+                    let id = proc.event_id.map(|id| id.to_string());
+                    if let Some(id) = &id {
+                        m.push((SimpleKey::Literal("ID"), SimpleValue::Str(id.as_bytes())));
                     }
                     if let Some(exe) = &proc.exe {
-                        m.push((
-                            SimpleRecordKey::Literal("exe"),
-                            SimpleRecordValue::Str(rv.put(exe)),
-                        ));
+                        m.push((SimpleKey::Literal("exe"), SimpleValue::Str(exe)));
                     }
                     if proc.ppid != 0 {
                         m.push((
-                            SimpleRecordKey::Literal("ppid"),
-                            SimpleRecordValue::Number(Number::Dec(proc.ppid.into())),
+                            SimpleKey::Literal("ppid"),
+                            SimpleValue::Number(Number::Dec(proc.ppid.into())),
                         ));
                     }
-                    Some((key, RecordValue::Map(m)))
+                    rv.push((key, Value::Map(m)));
                 }
             }
-            _ => None,
+            _ => {}
         }
     }
 
@@ -550,10 +536,9 @@ impl<'a> Coalesce<'a> {
                 extra += 72 // *uid, *gid: 9 entries.
             }
             rv.raw.reserve(extra);
-            let mut new = Vec::with_capacity(rv.len() - 3);
             let mut nrv = Record::default();
             let mut argv = Vec::with_capacity(4);
-            for (k, v) in &rv.elems {
+            for (k, ref v) in rv.into_iter() {
                 match (k, v) {
                     (Key::Arg(_, None), _) => {
                         // FIXME: check argv length
@@ -561,7 +546,7 @@ impl<'a> Coalesce<'a> {
                         continue;
                     }
                     (Key::ArgLen(_), _) => continue,
-                    (Key::Common(c), RecordValue::Number(n)) => match (c, n) {
+                    (Key::Common(c), Value::Number(n)) => match (c, n) {
                         (Common::Arch, Number::Hex(n)) if arch.is_none() => arch = Some(*n as u32),
                         (Common::Syscall, Number::Dec(n)) if syscall.is_none() => {
                             syscall = Some(*n as u32)
@@ -570,29 +555,26 @@ impl<'a> Coalesce<'a> {
                         (Common::PPid, Number::Dec(n)) if ppid.is_none() => ppid = Some(*n as u32),
                         _ => (),
                     },
-                    (Key::Common(c), RecordValue::Str(r, _)) => match c {
-                        Common::Comm if comm.is_none() => comm = Some(rv.raw[r.clone()].into()),
-                        Common::Exe if exe.is_none() => exe = Some(rv.raw[r.clone()].into()),
-                        Common::Key if key.is_none() => key = Some(rv.raw[r.clone()].into()),
+                    (Key::Common(c), Value::Str(s, _)) => match c {
+                        Common::Comm if comm.is_none() => comm = Some(s.as_ref().into()),
+                        Common::Exe if exe.is_none() => exe = Some(s.as_ref().into()),
+                        Common::Key if key.is_none() => key = Some(s.as_ref().into()),
                         _ => (),
                     },
-                    (Key::Name(name), RecordValue::Str(_, _)) => {
+                    (Key::Name(name), Value::Str(_, _)) => {
                         match name.as_ref() {
                             b"ARCH" | b"SYSCALL" if self.settings.translate_universal => continue,
                             _ => (),
                         };
                     }
                     _ => {
-                        if let Some((k, v)) = self.translate_userdb(&mut nrv, k, v) {
-                            nrv.elems.push((k, v));
-                        }
+                        self.translate_userdb(&mut nrv, k, &v);
                     }
                 };
-                new.push((k.clone(), v.clone()));
+                nrv.push((k.clone(), v.clone()));
             }
-            new.push((Key::Literal("ARGV"), RecordValue::List(argv)));
-            rv.elems = new;
-            rv.extend(nrv);
+            nrv.push((Key::Literal("ARGV"), Value::List(argv)));
+            *rv = nrv;
         }
 
         if let Some(EventValues::Single(rv)) = ev.body.get_mut(&EXECVE) {
@@ -787,19 +769,14 @@ impl<'a> Coalesce<'a> {
             match tv {
                 (&SYSCALL, EventValues::Single(_)) | (&EXECVE, EventValues::Single(_)) => {}
                 (&SOCKADDR, EventValues::Multi(rvs)) => {
-                    for mut rv in rvs {
-                        let mut new = Vec::with_capacity(rv.len());
+                    for rv in rvs {
                         let mut nrv = Record::default();
-                        for (k, v) in &rv.elems {
-                            if let (Key::Name(name), RecordValue::Str(vr, _)) = (k, v) {
+                        for (k, v) in &*rv {
+                            if let (Key::Name(name), Value::Str(vr, _)) = (k, v) {
                                 match name.as_ref() {
                                     b"saddr" if self.settings.translate_universal => {
-                                        if let Ok(sa) = SocketAddr::parse(&rv.raw[vr.clone()]) {
-                                            let kv = (
-                                                Key::Literal("SADDR"),
-                                                translate_socketaddr(&mut nrv, sa),
-                                            );
-                                            nrv.elems.push(kv);
+                                        if let Ok(sa) = SocketAddr::parse(&vr) {
+                                            translate_socketaddr(&mut nrv, sa);
                                             continue;
                                         }
                                     }
@@ -807,9 +784,7 @@ impl<'a> Coalesce<'a> {
                                     _ => {}
                                 }
                             }
-                            new.push((k.clone(), v.clone()));
                         }
-                        rv.elems = new;
                         rv.extend(nrv);
                     }
                 }
@@ -828,24 +803,18 @@ impl<'a> Coalesce<'a> {
                 }
                 (_, EventValues::Single(rv)) => {
                     let mut nrv = Record::default();
-                    for (k, v) in &rv.elems {
-                        if let Some((k, v)) = self.translate_userdb(&mut nrv, k, v) {
-                            nrv.elems.push((k, v));
-                        } else if let Some((k, v)) = self.enrich_generic_pid(&mut nrv, k, v) {
-                            nrv.elems.push((k, v));
-                        }
+                    for (k, v) in rv.into_iter() {
+                        self.translate_userdb(&mut nrv, k, &v);
+                        self.enrich_generic_pid(&mut nrv, k, &v);
                     }
                     rv.extend(nrv);
                 }
                 (_, EventValues::Multi(rvs)) => {
                     for rv in rvs {
                         let mut nrv = Record::default();
-                        for (k, v) in &rv.elems {
-                            if let Some((k, v)) = self.translate_userdb(&mut nrv, k, v) {
-                                nrv.elems.push((k, v));
-                            } else if let Some((k, v)) = self.enrich_generic_pid(&mut nrv, k, v) {
-                                nrv.elems.push((k, v));
-                            }
+                        for (k, v) in rv.into_iter() {
+                            self.translate_userdb(&mut nrv, k, &v);
+                            self.enrich_generic_pid(&mut nrv, k, &v);
                         }
                         rv.extend(nrv);
                     }
