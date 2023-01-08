@@ -824,25 +824,22 @@ impl<'a> Coalesce<'a> {
         if let (true, Some(parent)) = (self.settings.enrich_parent_info, &parent) {
             let mut pi = Record::default();
             if let Some(id) = parent.event_id {
-                let r = pi.put(format!("{}", id));
-                pi.elems
-                    .push((Key::Literal("ID"), RecordValue::Str(r, Quote::None)));
+                pi.push((
+                    Key::Literal("ID"),
+                    Value::Str(format!("{}", id).as_bytes(), Quote::None),
+                ));
             }
             if let Some(comm) = &parent.comm {
-                let r = pi.put(&comm);
-                pi.elems
-                    .push((Key::Literal("comm"), RecordValue::Str(r, Quote::None)));
+                pi.push((Key::Literal("comm"), Value::Str(comm, Quote::None)));
             }
             if let Some(exe) = &parent.exe {
-                let r = pi.put(&exe);
-                pi.elems
-                    .push((Key::Literal("exe"), RecordValue::Str(r, Quote::None)));
+                pi.push((Key::Literal("exe"), Value::Str(exe, Quote::None)));
             }
             let kv = (
                 Key::Literal("ppid"),
-                RecordValue::Number(Number::Dec(parent.ppid as i64)),
+                Value::Number(Number::Dec(parent.ppid as i64)),
             );
-            pi.elems.push(kv);
+            pi.push(kv);
             ev.body.insert(PARENT_INFO, EventValues::Single(pi));
         }
 
@@ -856,48 +853,41 @@ impl<'a> Coalesce<'a> {
 
             if let (true, Some(parent)) = (self.settings.enrich_pid, &parent) {
                 let mut m = Vec::with_capacity(4);
-                if let Some(id) = &parent.event_id {
+                let event_id = parent.event_id.map(|id| format!("{}", id));
+                if let Some(id) = &event_id {
                     m.push((
-                        SimpleRecordKey::Literal("EVENT_ID"),
-                        SimpleRecordValue::Str(sc.put(format!("{}", id))),
+                        SimpleKey::Literal("EVENT_ID"),
+                        SimpleValue::Str(id.as_bytes()),
                     ));
                 }
                 if let Some(comm) = &parent.comm {
-                    m.push((
-                        SimpleRecordKey::Literal("comm"),
-                        SimpleRecordValue::Str(sc.put(comm)),
-                    ));
+                    m.push((SimpleKey::Literal("comm"), SimpleValue::Str(comm)));
                 }
                 if let Some(exe) = &parent.exe {
-                    m.push((
-                        SimpleRecordKey::Literal("exe"),
-                        SimpleRecordValue::Str(sc.put(exe)),
-                    ));
+                    m.push((SimpleKey::Literal("exe"), SimpleValue::Str(exe)));
                 }
                 if parent.ppid != 0 {
                     m.push((
-                        SimpleRecordKey::Literal("ppid"),
-                        SimpleRecordValue::Number(Number::Dec(parent.ppid.into())),
+                        SimpleKey::Literal("ppid"),
+                        SimpleValue::Number(Number::Dec(parent.ppid.into())),
                     ));
                 }
-                sc.elems.push((Key::Literal("PPID"), RecordValue::Map(m)));
+                sc.push((Key::Literal("PPID"), Value::Map(m)));
             }
 
             if let (true, Some(script)) = (self.settings.enrich_script, script) {
-                let (k, v) = (
-                    Key::Literal("SCRIPT"),
-                    RecordValue::Str(sc.put(script), Quote::None),
-                );
-                sc.elems.push((k, v));
+                sc.push((Key::Literal("SCRIPT"), Value::Str(&script, Quote::None)));
             }
 
             if let Some(proc) = proc {
                 if let (true, Some(event_id)) = (self.settings.enrich_pid, proc.event_id) {
-                    let m = RecordValue::Map(vec![(
-                        SimpleRecordKey::Literal("EVENT_ID"),
-                        SimpleRecordValue::Str(sc.put(format!("{}", event_id))),
-                    )]);
-                    sc.elems.push((Key::Literal("PID"), m));
+                    sc.push((
+                        Key::Literal("PID"),
+                        Value::Map(vec![(
+                            SimpleKey::Literal("EVENT_ID"),
+                            SimpleValue::Str(format!("{}", event_id).as_bytes()),
+                        )]),
+                    ));
                 }
 
                 if !proc.labels.is_empty() {
@@ -911,17 +901,14 @@ impl<'a> Coalesce<'a> {
                     let labels = proc
                         .labels
                         .iter()
-                        .map(|l| RecordValue::Str(sc.put(l), Quote::None))
+                        .map(|l| Value::Str(l, Quote::None))
                         .collect::<Vec<_>>();
-                    sc.elems
-                        .push((Key::Literal("LABELS"), RecordValue::List(labels)));
+                    sc.push((Key::Literal("LABELS"), Value::List(labels)));
                 }
 
                 if let (true, Some(c)) = (self.settings.enrich_container, &proc.container_info) {
                     let mut ci = Record::default();
-                    let r = ci.put(&c.id);
-                    ci.elems
-                        .push((Key::Literal("ID"), RecordValue::Str(r, Quote::None)));
+                    ci.push((Key::Literal("ID"), Value::Str(&c.id, Quote::None)));
                     ev.body.insert(CONTAINER_INFO, EventValues::Single(ci));
                 }
             }
