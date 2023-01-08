@@ -550,7 +550,7 @@ impl<'a> Coalesce<'a> {
                 extra += 72 // *uid, *gid: 9 entries.
             }
             rv.raw.reserve(extra);
-            let mut new = Vec::with_capacity(rv.elems.len() - 3);
+            let mut new = Vec::with_capacity(rv.len() - 3);
             let mut nrv = Record::default();
             let mut argv = Vec::with_capacity(4);
             for (k, v) in &rv.elems {
@@ -792,7 +792,7 @@ impl<'a> Coalesce<'a> {
                 (&SYSCALL, EventValues::Single(_)) | (&EXECVE, EventValues::Single(_)) => {}
                 (&SOCKADDR, EventValues::Multi(rvs)) => {
                     for mut rv in rvs {
-                        let mut new = Vec::with_capacity(rv.elems.len());
+                        let mut new = Vec::with_capacity(rv.len());
                         let mut nrv = Record::default();
                         for (k, v) in &rv.elems {
                             if let (Key::Name(name), RecordValue::Str(vr, _)) = (k, v) {
@@ -1202,7 +1202,7 @@ mod test {
         process_record(&mut c, include_bytes!("testdata/record-login.txt")).unwrap();
         if let EventValues::Multi(records) = &ec.borrow().as_ref().unwrap().body[&LOGIN] {
             // Check for: pid uid subj old-auid auid tty old-ses ses res UID OLD-AUID AUID
-            let l = records[0].elems.len();
+            let l = records[0].len();
             assert!(
                 l == 12,
                 "expected 12 fields, got {}: {:?}",

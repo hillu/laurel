@@ -602,6 +602,10 @@ impl Record {
         self.elems.push((k, v));
     }
 
+    pub fn len(&self) -> usize {
+        self.elems.len()
+    }
+
     /// Retrieves the first value found for a given key
     pub fn get<K: AsRef<[u8]>>(&self, key: K) -> Option<Value> {
         let key = key.as_ref();
