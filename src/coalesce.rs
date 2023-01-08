@@ -1,7 +1,6 @@
 use std::collections::{BTreeMap, HashSet};
 use std::error::Error;
 use std::io::Write;
-use std::ops::Range;
 use std::path::{Component, Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -578,32 +577,32 @@ impl<'a> Coalesce<'a> {
         }
 
         if let Some(EventValues::Single(rv)) = ev.body.get_mut(&EXECVE) {
-            let mut new: Vec<(Key, RecordValue)> = Vec::with_capacity(2);
-            let mut argv: Vec<RecordValue> = Vec::with_capacity(1);
-            for (k, v) in &rv.elems {
+            let mut new = Record::default();
+            let mut argv: Vec<Value> = Vec::new();
+            for (k, v) in rv.into_iter() {
                 match k {
                     Key::ArgLen(_) => continue,
                     Key::Arg(i, None) => {
                         let idx = *i as usize;
                         if argv.len() <= idx {
-                            argv.resize(idx + 1, RecordValue::Empty);
+                            argv.resize(idx + 1, Value::Empty);
                         };
                         argv[idx] = v.clone();
                     }
                     Key::Arg(i, Some(f)) => {
                         let idx = *i as usize;
                         if argv.len() <= idx {
-                            argv.resize(idx + 1, RecordValue::Empty);
-                            argv[idx] = RecordValue::Segments(Vec::new());
+                            argv.resize(idx + 1, Value::Empty);
+                            argv[idx] = Value::Segments(Vec::new());
                         }
-                        if let Some(RecordValue::Segments(l)) = argv.get_mut(idx) {
+                        if let Some(Value::Segments(l)) = argv.get_mut(idx) {
                             let frag = *f as usize;
                             let r = match v {
-                                RecordValue::Str(r, _) => r,
-                                _ => &Range { start: 0, end: 0 }, // FIXME
+                                Value::Str(r, _) => r,
+                                _ => "".as_bytes(), // FIXME
                             };
                             if l.len() <= frag {
-                                l.resize(frag + 1, 0..0);
+                                l.resize(frag + 1, "".as_bytes());
                                 l[frag] = r.clone();
                             }
                         }
@@ -633,7 +632,7 @@ impl<'a> Coalesce<'a> {
                                 };
                             } else {
                                 if let Some((args, bytes)) = skipped {
-                                    filtered.push(RecordValue::Skipped((args, bytes)));
+                                    filtered.push(Value::Skipped((args, bytes)));
                                     skipped = None;
                                 }
                                 filtered.push(arg.clone());
@@ -647,13 +646,13 @@ impl<'a> Coalesce<'a> {
 
             // ARGV
             if self.settings.execve_argv_list {
-                new.push((Key::Literal("ARGV"), RecordValue::List(argv.clone())));
+                new.push((Key::Literal("ARGV"), Value::List(argv.clone())));
             }
             // ARGV_STR
             if self.settings.execve_argv_string {
                 new.push((
                     Key::Literal("ARGV_STR"),
-                    RecordValue::StringifiedList(argv.clone()),
+                    Value::StringifiedList(argv.clone()),
                 ));
             }
 
@@ -671,8 +670,7 @@ impl<'a> Coalesce<'a> {
                 _ => (),
             };
 
-            // FIXME: This needs to go away
-            rv.elems = new;
+            *rv = new;
         }
 
         if let (Some(arch), Some(syscall)) = (arch, syscall) {
@@ -852,10 +850,8 @@ impl<'a> Coalesce<'a> {
             if let (true, Some(an), Some(sn)) =
                 (self.settings.translate_universal, arch_name, syscall_name)
             {
-                sc.elems
-                    .push((Key::Literal("ARCH"), RecordValue::Literal(an)));
-                sc.elems
-                    .push((Key::Literal("SYSCALL"), RecordValue::Literal(sn)));
+                sc.push((Key::Literal("ARCH"), Value::Literal(an)));
+                sc.push((Key::Literal("SYSCALL"), Value::Literal(sn)));
             }
 
             if let (true, Some(parent)) = (self.settings.enrich_pid, &parent) {

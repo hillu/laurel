@@ -432,11 +432,11 @@ fn slice_contains(mainslice: &[u8], subslice: &[u8]) -> Option<usize> {
     }
 }
 
-impl RecordValue {
+impl Value<'_> {
     pub fn str_len(&self) -> usize {
         match self {
-            RecordValue::Str(r, _) => r.len(),
-            RecordValue::Segments(vr) => vr.iter().map(|r| r.len()).sum(),
+            Value::Str(r, _) => r.len(),
+            Value::Segments(vr) => vr.iter().map(|r| r.len()).sum(),
             _ => 0,
         }
     }
