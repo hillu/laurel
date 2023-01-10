@@ -533,6 +533,8 @@ impl<'a> Coalesce<'a> {
                 extra += 72 // *uid, *gid: 9 entries.
             }
             rv.raw.reserve(extra);
+            // FIXME: too much copying going on here. Modify in-place instead.
+            // in-place filtere_map()?
             let mut nrv = Record::default();
             let mut argv = Vec::with_capacity(4);
             for (ref k, ref v) in rv.into_iter() {
@@ -576,7 +578,7 @@ impl<'a> Coalesce<'a> {
 
         if let Some(EventValues::Single(rv)) = ev.body.get_mut(&EXECVE) {
             let mut new = Record::default();
-            let mut argv: Vec<Value> = Vec::new();
+            let mut argv: Vec<Value> = Vec::with_capacity(rv.len() - 1);
             for (k, v) in rv.into_iter() {
                 match k {
                     Key::ArgLen(_) => continue,
@@ -616,7 +618,7 @@ impl<'a> Coalesce<'a> {
                     let diff = argv_size - argv_max;
                     let skip_range = (argv_size - diff) / 2..(argv_size + diff) / 2;
                     argv = {
-                        let mut filtered = Vec::new();
+                        let mut filtered = Vec::with_capacity(argv.len() * argv_max / argv_size);
                         let mut start = 0;
                         let mut skipped: Option<(usize, usize)> = None;
                         for arg in argv.iter() {
