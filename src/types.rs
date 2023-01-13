@@ -622,14 +622,6 @@ impl Record {
         }
         None
     }
-
-    /// Add a byte string to a record.
-    pub fn put<S: AsRef<[u8]>>(&mut self, s: S) -> Range<usize> {
-        let s = s.as_ref();
-        let b = self.raw.len();
-        self.raw.extend(s);
-        b..b + s.len()
-    }
 }
 
 impl<'a> IntoIterator for &'a Record {
