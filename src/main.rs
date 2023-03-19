@@ -1,7 +1,6 @@
 //! Laurel is an "audisp" plugin plugins that consume data fed by the
 //! the Linux Audit daemon and reformats events as JSON lines.
 
-use getopts::Options;
 use std::collections::HashSet;
 use std::env;
 use std::error::Error;
@@ -13,6 +12,8 @@ use std::os::unix::io::FromRawFd;
 use std::path::Path;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
+
+use getopts::Options;
 
 use nix::unistd::{chown, setresgid, setresuid, Uid, User};
 
@@ -164,47 +165,7 @@ impl Logger {
 
 const LAUREL_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-fn run_app() -> Result<(), Box<dyn Error>> {
-    let args: Vec<String> = env::args().collect();
-
-    let mut opts = Options::new();
-    opts.optopt("c", "config", "Configuration file", "FILE");
-    opts.optflag("d", "dry-run", "Only parse configuration and exit");
-    opts.optflag("h", "help", "Print short help text and exit");
-    opts.optflag("v", "version", "Print version and exit");
-
-    let matches = opts.parse(&args[1..])?;
-    if matches.opt_present("h") {
-        println!("{}", opts.usage(&args[0]));
-        return Ok(());
-    }
-
-    if matches.opt_present("v") {
-        println!("{}", LAUREL_VERSION);
-        return Ok(());
-    }
-
-    let config: Config = match matches.opt_str("c") {
-        Some(f_name) => {
-            if fs::metadata(&f_name)
-                .map_err(|e| format!("stat {}: {}", &f_name, &e))?
-                .permissions()
-                .mode()
-                & 0o002
-                != 0
-            {
-                return Err(format!("Config file {} must not be world-writable", f_name).into());
-            }
-            let lines = fs::read(&f_name).map_err(|e| format!("read {}: {}", &f_name, &e))?;
-            toml::from_str(
-                &String::from_utf8(lines)
-                    .map_err(|_| format!("parse: {}: contains invalid UTF-8 sequences", &f_name))?,
-            )
-            .map_err(|e| format!("parse {}: {}", f_name, e))?
-        }
-        None => Config::default(),
-    };
-
+fn run_app(cmd: &str, config: &Config) -> Result<(), Box<dyn Error>> {
     let runas_user = match config.user {
         Some(ref username) => {
             User::from_name(username)?.ok_or_else(|| format!("user {} not found", username))?
@@ -214,11 +175,6 @@ fn run_app() -> Result<(), Box<dyn Error>> {
             User::from_uid(uid)?.ok_or_else(|| format!("uid {} not found", uid))?
         }
     };
-
-    if matches.opt_present("d") {
-        println!("Laurel {}: Config ok.", LAUREL_VERSION);
-        return Ok(());
-    }
 
     let dir = config
         .directory
@@ -294,7 +250,7 @@ fn run_app() -> Result<(), Box<dyn Error>> {
 
     log_info(&format!(
         "Started {} running version {}",
-        &args[0], LAUREL_VERSION
+        cmd, LAUREL_VERSION
     ));
     log_info(&format!(
         "Running with EUID {} using config {}",
@@ -386,14 +342,75 @@ fn run_app() -> Result<(), Box<dyn Error>> {
 
     log_info(&format!(
         "Stopped {} processed {} lines {} events with {} errors in total",
-        &args[0], &stats.lines, &stats.events, &stats.errors
+        cmd, &stats.lines, &stats.events, &stats.errors
     ));
 
     Ok(())
 }
 
+fn parse_config(path: &str) -> Result<Config, Box<dyn Error>> {
+    if fs::metadata(&path)
+        .map_err(|e| format!("stat {}: {}", &path, &e))?
+        .permissions()
+        .mode()
+        & 0o002
+        != 0
+    {
+        return Err(format!("Config file {} must not be world-writable", path).into());
+    }
+    let lines = fs::read(&path).map_err(|e| format!("read {}: {}", &path, &e))?;
+    let c: Config = toml::from_str(
+        &String::from_utf8(lines)
+            .map_err(|_| format!("parse: {}: contains invalid UTF-8 sequences", &path))?,
+    )
+    .map_err(|e| format!("parse {}: {}", path, e))?;
+    Ok(c)
+}
+
 pub fn main() {
-    let progname = Arc::new(env::args().next().unwrap_or_else(|| "laurel".to_string()));
+    use std::process::exit;
+
+    let mut args = env::args();
+    let cmd = args.next().unwrap_or("(laurel)".into());
+
+    let mut opts = Options::new();
+    opts.optopt("c", "config", "Configuration file", "FILE");
+    opts.optflag("d", "dry-run", "Only parse configuration and exit");
+    opts.optflag("h", "help", "Print short help text and exit");
+    opts.optflag("v", "version", "Print version and exit");
+
+    let matches = match opts.parse(args) {
+        Ok(m) => m,
+        Err(e) => {
+            println!("{}", e);
+            exit(1);
+        }
+    };
+
+    if matches.opt_present("h") {
+        println!("{}", opts.usage(&cmd));
+        exit(0);
+    }
+    if matches.opt_present("v") {
+        println!("{}", LAUREL_VERSION);
+        exit(0);
+    }
+    let config: Config = match matches.opt_str("c") {
+        Some(p) => match parse_config(&p) {
+            Ok(c) => c,
+            Err(e) => {
+                eprintln!("{}", e);
+                exit(1);
+            }
+        },
+        None => Config::default(),
+    };
+    if matches.opt_present("d") {
+        println!("Laurel {}: Config ok.", LAUREL_VERSION);
+        exit(0);
+    }
+
+    let progname = Arc::new(cmd.clone());
     syslog::init(&progname);
     {
         std::panic::set_hook(Box::new(move |panic_info| {
@@ -415,7 +432,7 @@ pub fn main() {
         }));
     }
 
-    match run_app() {
+    match run_app(&cmd, &config) {
         Ok(_) => (),
         Err(e) => {
             let e = e.to_string();
