@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use std::collections::{BTreeMap, HashSet};
 use std::error::Error;
 
@@ -36,11 +37,32 @@ pub struct Process {
     pub container_info: Option<ContainerInfo>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, PartialEq, Eq, Ord)]
 pub enum ProcKey {
     Event(EventID),
     // FIXME: Decide: Should we mix in pid or some other data from /proc?
     Time(u64),
+}
+
+/// Partial Ordering on ProcKey only takes the time component into
+/// account.
+impl PartialOrd for ProcKey {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        match (self, other) {
+            (ProcKey::Event(s), ProcKey::Event(o)) => Some(
+                s.timestamp
+                    .cmp(&o.timestamp)
+                    .then(s.sequence.cmp(&o.sequence)),
+            ),
+            (ProcKey::Time(s), ProcKey::Event(o)) => {
+                Some(s.partial_cmp(&o.timestamp).unwrap_or(Ordering::Less))
+            }
+            (ProcKey::Event(s), ProcKey::Time(o)) => {
+                Some(s.timestamp.partial_cmp(o).unwrap_or(Ordering::Greater))
+            }
+            (ProcKey::Time(s), ProcKey::Time(o)) => s.partial_cmp(o),
+        }
+    }
 }
 
 #[derive(Debug, Default, Serialize)]
@@ -68,8 +90,9 @@ impl ProcTable {
         unimplemented!()
     }
 
+    /// Retrieve a process by key.
     pub fn get(&self, key: ProcKey) -> Option<Process> {
-        unimplemented!()
+        self.procs.get(&key).cloned()
     }
 
     pub fn get_pid_before(&self, pid: u32, time: u64) -> Option<Process> {
