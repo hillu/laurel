@@ -24,44 +24,60 @@ impl Serialize for ContainerInfo {
 
 #[derive(Clone, Debug, Default, Serialize)]
 pub struct Process {
-    /// Unix timestamp with millisecond precision
-    pub launch_time: u64,
-    /// parent process id
-    pub ppid: u32,
+    pub key: ProcKey,
+    pub ppid: Option<u32>,
+    pub parent_key: Option<ProcKey>,
     pub labels: HashSet<Vec<u8>>,
-    /// Event ID containing the event spawning this process entry
-    /// (should be EXECVE).
-    pub event_id: Option<EventID>,
     pub comm: Option<Vec<u8>>,
     pub exe: Option<Vec<u8>>,
     pub container_info: Option<ContainerInfo>,
 }
 
-#[derive(Debug, Serialize, PartialEq, Eq, Ord)]
+impl Process {
+    pub fn event_id(&self) -> Option<EventID> {
+        match self.key {
+            ProcKey::Event(id) => Some(id),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub enum ProcKey {
     Event(EventID),
     // FIXME: Decide: Should we mix in pid or some other data from /proc?
     Time(u64),
 }
 
-/// Partial Ordering on ProcKey only takes the time component into
+impl Default for ProcKey {
+    fn default() -> Self {
+        ProcKey::Time(0)
+    }
+}
+
+/// Ordering on ProcKey only takes the time component into
 /// account.
-impl PartialOrd for ProcKey {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+impl Ord for ProcKey {
+    fn cmp(&self, other: &Self) -> Ordering {
         match (self, other) {
-            (ProcKey::Event(s), ProcKey::Event(o)) => Some(
-                s.timestamp
-                    .cmp(&o.timestamp)
-                    .then(s.sequence.cmp(&o.sequence)),
-            ),
+            (ProcKey::Event(s), ProcKey::Event(o)) => s
+                .timestamp
+                .cmp(&o.timestamp)
+                .then(s.sequence.cmp(&o.sequence)),
             (ProcKey::Time(s), ProcKey::Event(o)) => {
-                Some(s.partial_cmp(&o.timestamp).unwrap_or(Ordering::Less))
+                s.partial_cmp(&o.timestamp).unwrap_or(Ordering::Less)
             }
             (ProcKey::Event(s), ProcKey::Time(o)) => {
-                Some(s.timestamp.partial_cmp(o).unwrap_or(Ordering::Greater))
+                s.timestamp.partial_cmp(o).unwrap_or(Ordering::Greater)
             }
-            (ProcKey::Time(s), ProcKey::Time(o)) => s.partial_cmp(o),
+            (ProcKey::Time(s), ProcKey::Time(o)) => s.cmp(o),
         }
+    }
+}
+
+impl PartialOrd for ProcKey {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
     }
 }
 

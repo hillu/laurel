@@ -494,11 +494,11 @@ impl<'a> Coalesce<'a> {
             Key::Name(r) if r.ends_with(b"pid") => {
                 let key = Key::NameTranslated(r.clone());
                 let proc = self.processes.get_process(pid as _)?;
-                if proc.event_id.is_none() && proc.exe.is_none() && proc.ppid == 0 {
+                if proc.event_id().is_none() && proc.exe.is_none() && proc.ppid.is_none() {
                     None
                 } else {
                     let mut m = Vec::with_capacity(3);
-                    if let Some(id) = proc.event_id {
+                    if let Some(id) = proc.event_id() {
                         m.push((
                             SimpleKey::Literal("ID"),
                             SimpleValue::Str(rv.put(format!("{}", id))),
@@ -507,10 +507,10 @@ impl<'a> Coalesce<'a> {
                     if let Some(exe) = &proc.exe {
                         m.push((SimpleKey::Literal("exe"), SimpleValue::Str(rv.put(exe))));
                     }
-                    if proc.ppid != 0 {
+                    if let Some(ppid) = proc.ppid {
                         m.push((
                             SimpleKey::Literal("ppid"),
-                            SimpleValue::Number(Number::Dec(proc.ppid.into())),
+                            SimpleValue::Number(Number::Dec(ppid as _)),
                         ));
                     }
                     Some((key, Value::Map(m)))
@@ -875,7 +875,7 @@ impl<'a> Coalesce<'a> {
         // PARENT_INFO
         if let (true, Some(parent)) = (self.settings.enrich_parent_info, &parent) {
             let mut pi = Record::default();
-            if let Some(id) = parent.event_id {
+            if let Some(id) = parent.event_id() {
                 let r = pi.put(format!("{}", id));
                 pi.elems
                     .push((Key::Literal("ID"), Value::Str(r, Quote::None)));
@@ -890,11 +890,10 @@ impl<'a> Coalesce<'a> {
                 pi.elems
                     .push((Key::Literal("exe"), Value::Str(r, Quote::None)));
             }
-            let kv = (
-                Key::Literal("ppid"),
-                Value::Number(Number::Dec(parent.ppid as i64)),
-            );
-            pi.elems.push(kv);
+            if let Some(ppid) = parent.ppid {
+                pi.elems
+                    .push((Key::Literal("ppid"), Value::Number(Number::Dec(ppid as _))));
+            }
             ev.body.insert(PARENT_INFO, EventValues::Single(pi));
         }
 
@@ -908,7 +907,7 @@ impl<'a> Coalesce<'a> {
 
             if let (true, Some(parent)) = (self.settings.enrich_pid, &parent) {
                 let mut m = Vec::with_capacity(4);
-                if let Some(id) = &parent.event_id {
+                if let Some(id) = &parent.event_id() {
                     m.push((
                         SimpleKey::Literal("EVENT_ID"),
                         SimpleValue::Str(sc.put(format!("{}", id))),
@@ -920,10 +919,10 @@ impl<'a> Coalesce<'a> {
                 if let Some(exe) = &parent.exe {
                     m.push((SimpleKey::Literal("exe"), SimpleValue::Str(sc.put(exe))));
                 }
-                if parent.ppid != 0 {
+                if let Some(ppid) = parent.ppid {
                     m.push((
                         SimpleKey::Literal("ppid"),
-                        SimpleValue::Number(Number::Dec(parent.ppid.into())),
+                        SimpleValue::Number(Number::Dec(ppid as _)),
                     ));
                 }
                 sc.elems.push((Key::Literal("PPID"), Value::Map(m)));
@@ -938,7 +937,7 @@ impl<'a> Coalesce<'a> {
             }
 
             if let Some(proc) = proc {
-                if let (true, Some(event_id)) = (self.settings.enrich_pid, proc.event_id) {
+                if let (true, Some(event_id)) = (self.settings.enrich_pid, proc.event_id()) {
                     let m = Value::Map(vec![(
                         SimpleKey::Literal("EVENT_ID"),
                         SimpleValue::Str(sc.put(format!("{}", event_id))),
