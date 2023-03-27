@@ -49,6 +49,15 @@ pub enum ProcKey {
     Time(u64),
 }
 
+impl ProcKey {
+    fn time(&self) -> u64 {
+        match self {
+            ProcKey::Event(id) => id.timestamp,
+            ProcKey::Time(t) => *t,
+        }
+    }
+}
+
 impl Default for ProcKey {
     fn default() -> Self {
         ProcKey::Time(0)
@@ -103,7 +112,11 @@ impl ProcTable {
     /// Retrieves a process by pid.
     // FIXME: rename -> get_pid
     pub fn get_process(&mut self, pid: u32) -> Option<Process> {
-        unimplemented!()
+        self.by_pid
+            .get(&pid)
+            .and_then(|keys| keys.last())
+            .and_then(|key| self.procs.get(key))
+            .cloned()
     }
 
     /// Retrieve a process by key.
@@ -111,8 +124,14 @@ impl ProcTable {
         self.procs.get(&key).cloned()
     }
 
+    /// Retrieves a process by pid and latest start time
     pub fn get_pid_before(&self, pid: u32, time: u64) -> Option<Process> {
-        unimplemented!()
+        self.by_pid
+            .get(&pid)?
+            .iter()
+            .filter_map(|key| self.procs.get(key))
+            .find(|proc| proc.key.time() < time)
+            .cloned()
     }
 
     /// Adds a process.
