@@ -1,7 +1,7 @@
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashSet};
 use std::error::Error;
 
-use serde::Serialize;
+use serde::{ser::SerializeMap, Serialize, Serializer};
 
 use crate::label_matcher::LabelMatcher;
 use crate::types::EventID;
@@ -11,7 +11,17 @@ pub struct ContainerInfo {
     pub id: Vec<u8>,
 }
 
-#[derive(Clone, Debug, Default)]
+impl Serialize for ContainerInfo {
+    fn serialize<S: Serializer>(&self, s: S) -> Result<S::Ok, S::Error> {
+        let mut map = s.serialize_map(Some(1))?;
+        // safety: id contains entirely of hex-digits
+        let converted = unsafe { std::str::from_utf8_unchecked(&self.id) };
+        map.serialize_entry("id", converted)?;
+        map.end()
+    }
+}
+
+#[derive(Clone, Debug, Default, Serialize)]
 pub struct Process {
     /// Unix timestamp with millisecond precision
     pub launch_time: u64,
@@ -34,7 +44,13 @@ pub enum ProcKey {
 }
 
 #[derive(Debug, Default, Serialize)]
-pub struct ProcTable {}
+pub struct ProcTable {
+    procs: BTreeMap<ProcKey, Process>,
+    // hints array to facilitate finding a process instance using its
+    // PID. The list of process keys is to be kept sorted in
+    // chronological order.
+    by_pid: BTreeMap<u32, Vec<ProcKey>>,
+}
 
 impl ProcTable {
     /// Constructs process table from /proc entries
