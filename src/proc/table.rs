@@ -1,8 +1,10 @@
 use std::cmp::Ordering;
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::error::Error;
 
 use serde::{ser::SerializeMap, Serialize, Serializer};
+
+use super::parser::{get_pids, parse_proc_pid};
 
 use crate::label_matcher::LabelMatcher;
 use crate::types::EventID;
@@ -106,7 +108,34 @@ impl ProcTable {
         label_exe: Option<&LabelMatcher>,
         propagate_labels: &HashSet<Vec<u8>>,
     ) -> Result<ProcTable, Box<dyn Error>> {
-        unimplemented!()
+        let mut pt = ProcTable::default();
+        for pid in get_pids()? {
+            let pi = parse_proc_pid(pid)?;
+            let key = ProcKey::Time(pi.starttime);
+            let labels = HashSet::new();
+            let (comm, exe) = (pi.comm, pi.exe);
+            let container_info = pi.container_id.map(|ci| ContainerInfo{id: ci});
+            // FIXME: We can't use ppid until we figure out how to
+            // detect if a process might have been reparented after
+            // its parent has exited. It may have been become a child
+            // of a process != pid1 if PR_SET_CHILD_SUBREAPER has been
+            // used.
+            pt.procs.insert(
+                key,
+                Process {
+                    key,
+                    ppid: None,
+                    parent_key: None,
+                    comm,
+                    exe,
+                    labels,
+                    container_info,
+                },
+            );
+            pt.by_pid.insert(pid, vec![key]);
+        }
+
+        Ok(pt)
     }
 
     /// Retrieves a process by pid.
@@ -219,6 +248,47 @@ impl ProcTable {
 
     /// Remove process entries that are no longer relevant.
     pub fn expire(&mut self) {
-        unimplemented!()
+        let mut proc_prune: BTreeSet<ProcKey> = self.procs.keys().cloned().collect();
+        let mut pid_prune: Vec<u32> = vec![];
+
+        let live_processes = match get_pids() {
+            Ok(p) => p,
+            Err(_) => return,
+        };
+        // unmark latest instance in by_pids and all its parents
+        for seed_pid in live_processes {
+            let mut key = match self.by_pid.get(&seed_pid).and_then(|keys| keys.last()) {
+                None => continue,
+                Some(&key) => key,
+            };
+
+            loop {
+                if proc_prune.remove(&key) {
+                    break;
+                }
+                match self.procs.get(&key).and_then(|proc| proc.parent_key) {
+                    Some(parent_key) => key = parent_key,
+                    None => break,
+                };
+            }
+        }
+        // remove entries from primary process list
+        for key in proc_prune.iter() {
+            self.procs.remove(key);
+        }
+        // rewrite by_pid hints
+        for (pid, procs) in self.by_pid.iter_mut() {
+            *procs = procs
+                .iter()
+                .filter(|proc| !proc_prune.contains(proc))
+                .cloned()
+                .collect();
+            if procs.is_empty() {
+                pid_prune.push(*pid);
+            }
+        }
+        for pid in pid_prune {
+            self.by_pid.remove(&pid);
+        }
     }
 }
