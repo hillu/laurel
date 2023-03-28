@@ -729,26 +729,26 @@ impl<'a> Coalesce<'a> {
                     .proc_propagate_labels
                     .intersection(&parent.labels)
                 {
-                    self.processes.add_label(pid, l);
+                    self.processes.add_label_pid(pid, l);
                 }
             }
         }
 
         if let (Some(pid), Some(key)) = (&pid, &key) {
             if self.settings.proc_label_keys.contains(key.as_ref()) {
-                self.processes.add_label(*pid, key);
+                self.processes.add_label_pid(*pid, key);
             }
         }
 
         if let (Some(exe), Some(pid), true) = (&exe, &pid, syscall_is_exec) {
             if let Some(label_exe) = &self.settings.label_exe {
                 for label in label_exe.matches(exe) {
-                    self.processes.add_label(*pid, label);
+                    self.processes.add_label_pid(*pid, label);
                 }
             }
             if let Some(unlabel_exe) = &self.settings.unlabel_exe {
                 for label in unlabel_exe.matches(exe) {
-                    self.processes.remove_label(*pid, label);
+                    self.processes.remove_label_pid(*pid, label);
                 }
             }
         }
@@ -774,12 +774,12 @@ impl<'a> Coalesce<'a> {
         if let (Some(pid), Some(script)) = (pid, &script) {
             if let Some(label_script) = self.settings.label_script {
                 for label in label_script.matches(script.as_ref()) {
-                    self.processes.add_label(pid, label);
+                    self.processes.add_label_pid(pid, label);
                 }
             }
             if let Some(unlabel_script) = self.settings.unlabel_script {
                 for label in unlabel_script.matches(script.as_ref()) {
-                    self.processes.remove_label(pid, label);
+                    self.processes.remove_label_pid(pid, label);
                 }
             }
         }

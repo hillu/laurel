@@ -42,7 +42,7 @@ impl Process {
     }
 }
 
-#[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
 pub enum ProcKey {
     Event(EventID),
     // FIXME: Decide: Should we mix in pid or some other data from /proc?
@@ -120,8 +120,15 @@ impl ProcTable {
     }
 
     /// Retrieve a process by key.
-    pub fn get(&self, key: ProcKey) -> Option<Process> {
-        self.procs.get(&key).cloned()
+    pub fn get(&self, key: &ProcKey) -> Option<Process> {
+        self.procs.get(key).cloned()
+    }
+
+    /// Retrieve a process by key.
+    ///
+    /// Note: The `key' of the returned `Process' must not be changed!
+    fn get_mut(&mut self, key: &ProcKey) -> Option<&mut Process> {
+        self.procs.get_mut(key)
     }
 
     /// Retrieves a process by pid and latest start time
@@ -144,19 +151,70 @@ impl ProcTable {
         comm: Option<Vec<u8>>,
         exe: Option<Vec<u8>>,
     ) {
-        unimplemented!()
+        let key = ProcKey::Event(id);
+        let parent_key = self
+            .by_pid
+            .get(&ppid)
+            .and_then(|procs| procs.last())
+            .cloned();
+        let ppid = Some(ppid);
+        let labels = HashSet::new();
+        let container_info = None;
+        self.procs.insert(
+            key,
+            Process {
+                key,
+                ppid,
+                parent_key,
+                comm,
+                exe,
+                labels,
+                container_info,
+            },
+        );
+        match self.by_pid.get_mut(&pid) {
+            Some(ref mut v) => {
+                v.push(key);
+                v.sort();
+            }
+            None => {
+                self.by_pid.insert(pid, vec![key]);
+            }
+        }
     }
 
     /// Add a label to a process
-    // FIXME: Change to using ProcKey?
-    pub fn add_label(&mut self, pid: u32, label: &[u8]) {
-        unimplemented!()
+    pub fn add_label(&mut self, key: &ProcKey, label: &[u8]) {
+        if let Some(ref mut proc) = self.get_mut(key) {
+            proc.labels.insert(label.into());
+        }
     }
 
     /// Remove a label from a process
-    // FIXME: Change to using ProcKey?
-    pub fn remove_label(&mut self, pid: u32, label: &[u8]) {
-        unimplemented!()
+    pub fn remove_label(&mut self, key: &ProcKey, label: &[u8]) {
+        if let Some(ref mut proc) = self.get_mut(key) {
+            proc.labels.remove(label);
+        }
+    }
+
+    /// Add a label to a process
+    // #[deprecated]
+    pub fn add_label_pid(&mut self, pid: u32, label: &[u8]) {
+        let key = match self.by_pid.get(&pid).and_then(|keys| keys.last()) {
+            Some(&key) => key,
+            None => return,
+        };
+        self.add_label(&key, label);
+    }
+
+    /// Remove a label from a process
+    // #[deprecated]
+    pub fn remove_label_pid(&mut self, pid: u32, label: &[u8]) {
+        let key = match self.by_pid.get(&pid).and_then(|keys| keys.last()) {
+            Some(&key) => key,
+            None => return,
+        };
+        self.remove_label(&key, label)
     }
 
     /// Remove process entries that are no longer relevant.
