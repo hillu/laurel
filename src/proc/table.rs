@@ -99,16 +99,20 @@ pub struct ProcTable {
     // PID. The list of process keys is to be kept sorted in
     // chronological order.
     by_pid: BTreeMap<u32, Vec<ProcKey>>,
+    label_exe: Option<LabelMatcher>,
+    propagate_labels: HashSet<Vec<u8>>,
 }
 
 impl ProcTable {
-    /// Constructs process table from /proc entries
-    // FIXME: Decide what to do with label config
-    pub fn from_proc(
-        label_exe: Option<&LabelMatcher>,
-        propagate_labels: &HashSet<Vec<u8>>,
-    ) -> Result<ProcTable, Box<dyn Error>> {
-        let mut pt = ProcTable::default();
+    pub fn set_label_exe(mut self, label_exe: Option<LabelMatcher>) -> Self {
+        self.label_exe = label_exe;
+        self
+    }
+    pub fn set_propagate_labels(mut self, propagate_labels: HashSet<Vec<u8>>) -> Self {
+        self.propagate_labels = propagate_labels;
+        self
+    }
+    pub fn init_from_proc(mut self) -> Result<Self, Box<dyn Error>> {
         for pid in get_pids()? {
             let pi = parse_proc_pid(pid)?;
             let key = ProcKey::Time(pi.starttime);
@@ -120,7 +124,7 @@ impl ProcTable {
             // its parent has exited. It may have been become a child
             // of a process != pid1 if PR_SET_CHILD_SUBREAPER has been
             // used.
-            pt.procs.insert(
+            self.procs.insert(
                 key,
                 Process {
                     key,
@@ -132,10 +136,32 @@ impl ProcTable {
                     container_info,
                 },
             );
-            pt.by_pid.insert(pid, vec![key]);
+            self.by_pid.insert(pid, vec![key]);
         }
 
-        Ok(pt)
+        // initialize labels
+        if let Some(ref label_exe) = self.label_exe {
+            for proc in self.procs.values_mut() {
+                if let Some(ref exe) = proc.exe {
+                    proc.labels
+                        .extend(label_exe.matches(exe).iter().map(|v| Vec::from(*v)));
+                }
+            }
+        }
+
+        Ok(self)
+    }
+
+    /// Constructs process table from /proc entries
+    // #[deprecated]
+    pub fn from_proc(
+        label_exe: Option<&LabelMatcher>,
+        propagate_labels: &HashSet<Vec<u8>>,
+    ) -> Result<ProcTable, Box<dyn Error>> {
+        ProcTable::default()
+            .set_label_exe(label_exe.cloned())
+            .set_propagate_labels(propagate_labels.clone())
+            .init_from_proc()
     }
 
     /// Retrieves a process by pid.
