@@ -124,6 +124,23 @@ impl ProcTable {
             // its parent has exited. It may have been become a child
             // of a process != pid1 if PR_SET_CHILD_SUBREAPER has been
             // used.
+            //
+            // Idea: Is the process pid1 in its own namespace?
+            //
+            // Idea: Exceptions by basename(exe): aSearching for
+            // prctl.*PR_SET_CHILD_SUBREAPER in codesearch.debian.net:
+            // 
+            // - systemd
+            // - lutris-wrapper
+            // - tini
+            // - bubblewrap
+            // - runc
+            // - conmon
+            // - crun
+            // - keepalived
+            // - lxqt-session
+            // - catatonit
+            // - criu
             self.procs.insert(
                 key,
                 Process {
