@@ -4,6 +4,8 @@ use std::io::Write;
 use std::ops::Range;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use serde::ser::Serializer;
+use serde::Serialize;
 use serde_json::json;
 
 use crate::constants::{msg_type::*, ARCH_NAMES, SYSCALL_NAMES};
@@ -19,7 +21,7 @@ use crate::userdb::UserDB;
 
 use thiserror::Error;
 
-#[derive(Clone)]
+#[derive(Clone, Serialize)]
 pub struct Settings<'a> {
     /// Generate ARGV and ARGV_STR from EXECVE
     pub execve_argv_list: bool,
@@ -86,10 +88,21 @@ pub enum CoalesceError {
     SpuriousEOE(EventID),
 }
 
+type InflightMap = BTreeMap<(Option<Vec<u8>>, EventID), Event>;
+
+mod inflight {
+    use super::*;
+    pub(super) fn serialize<S: Serializer>(m: &InflightMap, s: S) -> Result<S::Ok, S::Error> {
+        s.collect_seq(m.values())
+    }
+}
+
 /// Coalesce collects Audit Records from individual lines and assembles them to Events
+#[derive(Serialize)]
 pub struct Coalesce<'a> {
     /// Events that are being collected/processed
-    inflight: BTreeMap<(Option<Vec<u8>>, EventID), Event>,
+    #[serde(with = "inflight")]
+    inflight: InflightMap,
     /// Event IDs that have been recently processed
     done: HashSet<(Option<Vec<u8>>, EventID)>,
     /// Timestamp for next cleanup
@@ -97,6 +110,7 @@ pub struct Coalesce<'a> {
     /// Process table built from observing process-related events
     processes: ProcTable,
     /// Output function
+    #[serde(skip)]
     emit_fn: Box<dyn 'a + FnMut(&Event)>,
     /// Creadential cache
     userdb: UserDB,
@@ -1099,7 +1113,7 @@ impl<'a> Coalesce<'a> {
                         }
                     ).collect::<BTreeMap<_,_>>(),
                     "done": self.done.iter().map(
-                        |v| if let Some(node ) = &v.0 {
+                        |v| if let Some(node) = &v.0 {
                             format!("{}::{}", String::from_utf8_lossy(node), v.1)
                         } else {
                             format!("{}", v.1)
