@@ -181,7 +181,6 @@ fn add_translated_socketaddr(rv: &mut Record, sa: SocketAddr) {
 
 /// Returns a script name from path if exe's dev / inode don't match
 ///
-/// This seems to work with Docker containers but not with Podman.
 /// The executable's device and inode are inspected throguh the
 /// /proc/<pid>/root/ symlink. This may fail for
 ///
@@ -189,6 +188,11 @@ fn add_translated_socketaddr(rv: &mut Record, sa: SocketAddr) {
 /// - container setups where the container's filesystem is constructed
 ///   using fuse-overlayfs (observed with
 ///   podman+fuse-overlayfs/1.4.0-1 on Debian/buster).
+///
+/// Some container setups construct filesystem mappings where
+/// major(dev) = 0: "Unnamed devices (e.g. non-device mounts)". In
+/// this case, no script is returned if exe is found on a device with
+/// major(dev) != 0.
 ///
 /// As an extra sanity check, exe is compared with normalized
 /// PATH.name. If they are equal, no script is returned.
@@ -208,7 +212,7 @@ fn path_script_name(path: &Record, pid: u32, ppid: u32, cwd: &[u8], exe: &[u8]) 
 
     let mut p_dev: Option<u64> = None;
     let mut p_inode: Option<u64> = None;
-    let mut name = None;
+    let mut p_name = None;
     for (k, v) in path {
         if k == "name" {
             if let Value::Str(r, _) = v {
@@ -231,7 +235,7 @@ fn path_script_name(path: &Record, pid: u32, ppid: u32, cwd: &[u8], exe: &[u8]) 
                         _ => tpb.push(c),
                     }
                 }
-                name = Some(NVec::from(tpb.as_os_str().as_bytes()))
+                p_name = Some(NVec::from(tpb.as_os_str().as_bytes()))
             }
         } else if k == "inode" {
             if let Value::Number(Number::Dec(i)) = v {
@@ -252,9 +256,10 @@ fn path_script_name(path: &Record, pid: u32, ppid: u32, cwd: &[u8], exe: &[u8]) 
             break;
         }
     }
-    match (p_dev, p_inode, name) {
-        (Some(p_dev), Some(p_inode), _) if p_dev == e_dev && p_inode == e_inode => None,
-        (Some(_), Some(_), Some(name)) if name != exe => Some(name),
+    match (p_dev, p_inode, p_name) {
+        (Some(0), _, _) if nix::sys::stat::major(e_dev) != 0 => None,
+        (Some(p_dev), Some(p_inode), _) if (p_dev, p_inode) == (e_dev, e_inode) => None,
+        (Some(_), Some(_), Some(p_name)) if p_name != exe => Some(p_name),
         _ => None,
     }
 }
