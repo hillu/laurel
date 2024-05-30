@@ -136,6 +136,31 @@ Options that can be configured here actually add information to events
   binary), add a `SCRIPT` entry to the `SYSCALL` record. A script is
   assumed if the first `PATH` entry does not correspond to file
   mentioned  in `SYSCALL.exe`. Default: true
+- `script-executables`: List of regular expressions for script
+  interpreter paths. Default: A single-item list:
+  ```
+  [
+      "^/(?:usr/(?:local//)?)?bin/(?:(?:perl|python|ruby(?:[.]ruby)?|lua|php|node(?:-?js)?)(?:-?[0-9\.]+)?|bash|dash|sh|ksh(?:93)?|[gmn]?awk|env)$"
+  ]
+  ```
+  Reformatted with line breaks inserted for legibility:
+  ```
+  ^
+  /(?:usr/(?:local//)?)?bin/
+  (?:(?:perl
+       |python
+       |ruby(?:[.]ruby)?
+       |lua
+       |php
+       |node(?:-?js)?)(?:-?[0-9\.]+)?
+    |bash
+	|dash
+	|sh
+	|ksh(?:93)?
+	|[gmn]?awk
+	|env)
+  $
+  ```
 - `user-groups`: Add groups that the user ("uid") is a member of.
   Default: true
 

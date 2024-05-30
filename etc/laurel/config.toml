@@ -100,6 +100,11 @@ container = true
 # Add script context to SYSCALL execve events
 script = true
 
+# Which executables to consider as script interpreters
+# script-paths = [
+#     "^/(?:usr/(?:local//)?)?bin/(?:(?:perl|python|ruby(?:[.]ruby)?|lua|php|node(?:-?js)?)(?:-?[0-9\.]+)?|bash|dash|sh|ksh(?:93)?|[gmn]?awk|env)$"
+# ]
+
 # Add groups that the user (uid) is a member of. Default: true
 user-groups = true
 

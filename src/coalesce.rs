@@ -31,6 +31,7 @@ pub struct Settings {
     pub enrich_container: bool,
     pub enrich_pid: bool,
     pub enrich_script: bool,
+    pub enrich_script_executables: regex::bytes::RegexSet,
     pub enrich_uid_groups: bool,
 
     pub proc_label_keys: HashSet<Vec<u8>>,
@@ -62,6 +63,7 @@ impl Default for Settings {
             enrich_container: false,
             enrich_pid: true,
             enrich_script: true,
+            enrich_script_executables: regex::bytes::RegexSet::empty(),
             enrich_uid_groups: true,
             proc_label_keys: HashSet::new(),
             proc_propagate_labels: HashSet::new(),

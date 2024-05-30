@@ -82,6 +82,13 @@ fn true_value() -> bool {
     true
 }
 
+fn script_executables_default() -> regex::bytes::RegexSet {
+    let regexes = [
+        r#"^/(?:usr/(?:local//)?)?bin/(?:(?:perl|python|ruby(?:[.]ruby)?|lua|php|node(?:-?js)?)(?:-?[0-9\.]+)?|bash|dash|sh|ksh(?:93)?|[gmn]?awk|env)"#
+    ];
+    regex::bytes::RegexSet::new(&regexes).unwrap()
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Enrich {
     #[serde(default = "execve_env_default", rename = "execve-env")]
@@ -92,6 +99,8 @@ pub struct Enrich {
     pub pid: bool,
     #[serde(default = "true_value")]
     pub script: bool,
+    #[serde(default, rename = "script-executables", with = "regex_set")]
+    pub script_executables: regex::bytes::RegexSet,
     #[serde(default = "true_value", rename = "uid-groups")]
     pub uid_groups: bool,
 }
@@ -103,6 +112,7 @@ impl Default for Enrich {
             container: true,
             pid: true,
             script: true,
+            script_executables: script_executables_default(),
             uid_groups: true,
         }
     }
@@ -314,6 +324,7 @@ impl Config {
             enrich_container: self.enrich.container,
             enrich_pid: self.enrich.pid,
             enrich_script: self.enrich.script,
+            enrich_script_executables: self.enrich.script_executables.clone(),
             enrich_uid_groups: self.enrich.uid_groups,
             proc_label_keys: self
                 .label_process
