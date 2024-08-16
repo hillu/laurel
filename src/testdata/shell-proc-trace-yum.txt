@@ -1,0 +1,24 @@
+type=SYSCALL msg=audit(1723800561.675:4156): arch=c000003e syscall=59 success="yes" exit=0 a0=23cde40 a1=23a9460 a2=23ce280 a3=5be items=2 ppid=2522 pid=7410 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty="(none)" ses=4294967295 comm="timeout" exe="/usr/bin/timeout" key=null
+type=EXECVE msg=audit(1723800561.675:4156): argc=6 a0="timeout" a1="240" a2="yum" a3="install" a4="-y" a5="some-package-client"
+type=CWD msg=audit(1723800561.675:4156): cwd="/"
+type=PATH msg=audit(1723800561.675:4156): item=0 name="/usr/bin/timeout" inode=1087599 dev="103:01" mode=100755 ouid=0 ogid=0 rdev="00:00" nametype="NORMAL" cap_fp=0 cap_fi=0 cap_fe=0 cap_fver=0 cap_frootid="0"
+type=PATH msg=audit(1723800561.675:4156): item=1 name="/lib64/ld-linux-x86-64.so.2" inode=2118635 dev="103:01" mode=100755 ouid=0 ogid=0 rdev="00:00" nametype="NORMAL" cap_fp=0 cap_fi=0 cap_fe=0 cap_fver=0 cap_frootid="0"
+type=EOE msg=audit(1723800561.675:4156): 
+type=SYSCALL msg=audit(1723800561.675:4158): arch=c000003e syscall=59 success="yes" exit=0 a0=7ffc123c0680 a1=7ffc123c0928 a2=7ffc123c0950 a3=7ffc123c1f40 items=3 ppid=7410 pid=7411 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty="(none)" ses=4294967295 comm="yum" exe="/usr/bin/python2.7" key="pkg_mgmt"
+type=EXECVE msg=audit(1723800561.675:4158): argc=5 a0="/usr/bin/python" a1="/usr/bin/yum" a2="install" a3="-y" a4="some-package-client"
+type=CWD msg=audit(1723800561.675:4158): cwd="/"
+type=PATH msg=audit(1723800561.675:4158): item=0 name="/usr/bin/yum" inode=1113464 dev="103:01" mode=100755 ouid=0 ogid=0 rdev="00:00" nametype="NORMAL" cap_fp=0 cap_fi=0 cap_fe=0 cap_fver=0 cap_frootid="0"
+type=PATH msg=audit(1723800561.675:4158): item=1 name="/usr/bin/python" inode=1088421 dev="103:01" mode=100755 ouid=0 ogid=0 rdev="00:00" nametype="NORMAL" cap_fp=0 cap_fi=0 cap_fe=0 cap_fver=0 cap_frootid="0"
+type=PATH msg=audit(1723800561.675:4158): item=2 name="/lib64/ld-linux-x86-64.so.2" inode=2118635 dev="103:01" mode=100755 ouid=0 ogid=0 rdev="00:00" nametype="NORMAL" cap_fp=0 cap_fi=0 cap_fe=0 cap_fver=0 cap_frootid="0"
+type=EOE msg=audit(1723800561.675:4158): 
+type=SYSCALL msg=audit(1723800566.827:4241): arch=c000003e syscall=59 success="yes" exit=0 a0=367d030 a1=36bc970 a2=7ffc52b9d7a8 a3=14 items=2 ppid=7411 pid=7456 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty="(none)" ses=4294967295 comm="sh" exe="/usr/bin/bash" key=null
+type=EXECVE msg=audit(1723800566.827:4241): argc=3 a0="/bin/sh" a1="/var/tmp/rpm-tmp.ZXdt8m" a2="0"
+type=CWD msg=audit(1723800566.827:4241): cwd="/"
+type=PATH msg=audit(1723800566.827:4241): item=0 name="/bin/sh" inode=1049906 dev="103:01" mode=100755 ouid=0 ogid=0 rdev="00:00" nametype="NORMAL" cap_fp=0 cap_fi=0 cap_fe=0 cap_fver=0 cap_frootid="0"
+type=PATH msg=audit(1723800566.827:4241): item=1 name="/lib64/ld-linux-x86-64.so.2" inode=2118635 dev="103:01" mode=100755 ouid=0 ogid=0 rdev="00:00" nametype="NORMAL" cap_fp=0 cap_fi=0 cap_fe=0 cap_fver=0 cap_frootid="0"
+type=EOE msg=audit(1723800566.827:4241): 
+type=SYSCALL msg=audit(1723800567.023:4307): arch=c000003e syscall=257 success="yes" exit=3 a0=ffffffffffffff9c a1=22fa0b0 a2=241 a3=1b6 items=2 ppid=7456 pid=7492 auid=4294967295 uid=0 gid=0 euid=0 suid=0 fsuid=0 egid=0 sgid=0 fsgid=0 tty="(none)" ses=4294967295 comm="sh" exe="/usr/bin/bash" key=null
+type=CWD msg=audit(1723800567.023:4307): cwd="/"
+type=PATH msg=audit(1723800567.023:4307): item=0 name="/etc/some-pacakge/" inode=46137444 dev="103:01" mode=40755 ouid=0 ogid=0 rdev="00:00" nametype="PARENT" cap_fp=0 cap_fi=0 cap_fe=0 cap_fver=0 cap_frootid="0"
+type=PATH msg=audit(1723800567.023:4307): item=1 name="/etc/some-package/config" inode=46137445 dev="103:01" mode=100644 ouid=0 ogid=0 rdev="00:00" nametype="CREATE" cap_fp=0 cap_fi=0 cap_fe=0 cap_fver=0 cap_frootid="0"
+type=EOE msg=audit(1723800567.023:4307): 

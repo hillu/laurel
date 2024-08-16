@@ -1699,4 +1699,34 @@ mod test {
             println!("{}", event_to_json(&event));
         }
     }
+
+    #[test]
+    fn shell_proc_trace_yum() {
+        let s = Settings {
+            proc_label_keys: [b"pkg_mgmt".to_vec()].into(),
+            proc_propagate_labels: [b"pkg_mgmt".to_vec()].into(),
+            filter_keys: [b"fork".to_vec()].into(),
+            ..Settings::default()
+        };
+
+        let events: Rc<RefCell<Vec<Event>>> = Rc::new(RefCell::new(vec![]));
+        let mut c = Coalesce::new(mk_emit_vec(&events));
+
+        c.settings = s.clone();
+
+        process_record(
+            &mut c,
+            include_bytes!("testdata/shell-proc-trace-yum.txt"),
+        )
+        .unwrap();
+
+        let events = events.borrow();
+
+        for id in ["1723800561.675:4158", "1723800566.827:4241", "1723800567.023:4307"] {
+            let event = find_event(&events, id).expect(&format!("Did not find {id}"));
+            println!("{}", event_to_json(&event));
+            assert!(event_to_json(&event).contains(r#""LABELS":["pkg_mgmt"]"#),
+                    "event {} is not labelled correctly", event.id)
+        }
+    }
 }
