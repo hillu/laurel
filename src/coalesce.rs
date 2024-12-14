@@ -1488,6 +1488,27 @@ mod test {
     }
 
     #[test]
+    fn filter_label_issue232() {
+        let ec: Rc<RefCell<Option<Event>>> = Rc::new(RefCell::new(None));
+
+        let mut c = Coalesce::new(mk_emit(&ec));
+        c.settings.label_exe = Some(LabelMatcher::new(&[(
+            "^/opt/splunk/bin/splunk-optimize",
+            "test-splunk-optimize",
+        )]).unwrap());
+        c.settings
+            .filter_labels
+            .insert(Vec::from(&b"test-splunk-optimize"[..]));
+        c.settings.filter_first_per_process = true;
+
+        process_record(
+            &mut c,
+            include_bytes!("testdata/issue232-not-dropped-label.txt"),
+        ).unwrap();
+        assert!(ec.borrow().as_ref().is_none());
+    }
+
+    #[test]
     fn filter_raw() {
         let events: Rc<RefCell<Vec<Event>>> = Rc::new(RefCell::new(vec![]));
 

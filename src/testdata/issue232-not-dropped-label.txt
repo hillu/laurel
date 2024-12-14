@@ -1,0 +1,16 @@
+# description from https://github.com/threathunters-io/laurel/issues/232
+#
+# I set label-exe.'^/opt/splunk/bin/splunk-optimize' =
+# 'test-splunk-optimize' in the config.toml and this works fine
+#
+# Then I set filter-labels = ["test-splunk-optimize"] and
+# filter-action = "drop" It seems that this is not working properly as
+# the events are not filtered. The same behavior occurs with
+# filter-keys and filter-raw-lines.
+#
+type=PROCTITLE msg=audit(1733901080.688:1282950): proctitle=73706C756E6B2D6F7074696D697A65002D64002F6F70742F73706C756E6B2F7661722F6C69622F73706C756E6B2F5F696E7465726E616C2F64622F686F745F76315F383238002D78003737383936313432333336002D2D6C6F672D746F2D2D73706C756E6B642D6C6F67002D2D77726974652D6C6576656C0034002D2D747369
+type=PATH msg=audit(1733901080.688:1282950): item=1 name="/lib64/ld-linux-x86-64.so.2" inode=5799238 dev=00:1e9 mode=0100755 ouid=0 ogid=0 rdev=00:00 nametype=NORMAL cap_fp=0 cap_fi=0 cap_fe=0 cap_fver=0 cap_frootid=0
+type=PATH msg=audit(1733901080.688:1282950): item=0 name="/opt/splunk/bin/splunk-optimize" inode=6708923 dev=00:1e9 mode=0100555 ouid=41812 ogid=41812 rdev=00:00 nametype=NORMAL cap_fp=0 cap_fi=0 cap_fe=0 cap_fver=0 cap_frootid=0
+type=EXECVE msg=audit(1733901080.688:1282950): argc=12 a0="splunk-optimize" a1="-d" a2="/opt/splunk/var/lib/splunk/_internal/db/hot_v1_828" a3="-x" a4="77896142336" a5="--log-to--splunkd-log" a6="--write-level" a7="4" a8="--tsidx-target-size" a9="1572864000" a10="--msidx-comp-block-size" a11="1024"
+type=SYSCALL msg=audit(1733901080.688:1282950): arch=c000003e syscall=59 success=yes exit=0 a0=7ffd8729e710 a1=7ffd8729e800 a2=7ffd872a0f60 a3=8 items=2 ppid=37379 pid=1682025 auid=4294967295 uid=41812 gid=41812 euid=41812 suid=41812 fsuid=41812 egid=41812 sgid=41812 fsgid=41812 tty=(none) ses=4294967295 comm="splunk-optimize" exe="/opt/splunk/bin/splunk-optimize" subj=docker-default key="procexec_64"
+type=EOE msg=audit(1733901080.688:1282950): 
